@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
+import bcrypt
+
 from src.models.models import User, Role
 
 
@@ -8,11 +10,16 @@ class UserController:
   # Create
   @staticmethod
   def create(db: Session, name: str, surname: str, username: str, password: str) -> User:
+    hashed = bcrypt.hashpw(
+      password.encode('utf-8'),
+      bcrypt.gensalt()
+    )
+
     new_user = User(
       name_user=name,
       surname_user=surname,
       username_user=username,
-      password_user=password
+      password_user=hashed.decode('utf-8')  # Hashed password
     )
 
     db.add(new_user)
@@ -51,7 +58,12 @@ class UserController:
       user.username_user = username
 
     if password is not None:
-      user.password_user = password
+      hashed = bcrypt.hashpw(
+        password.encode('utf-8'),
+        bcrypt.gensalt()
+      )
+
+      user.password_user = hashed.decode('utf-8')
 
     db.commit()
     db.refresh(user)
