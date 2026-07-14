@@ -1,3 +1,3 @@
-import src.db.conn
+import src.db.init
 
 
