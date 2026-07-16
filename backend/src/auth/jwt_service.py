@@ -9,10 +9,11 @@ JWT_ALGORITHM = 'HS256'
 
 class JwtService:
   @staticmethod
-  def generate(user_id: int, username: str) -> str:
+  def generate(user_id: int, username: str, role_id: int) -> str:
     payload = {
       'sub': str(user_id),
       'user': username,
+      'role': role_id,
       'exp': datetime.now(UTC) + timedelta(minutes=JWT_EXPIRE_IN_MINUTES)
     }
 

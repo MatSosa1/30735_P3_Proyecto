@@ -1,25 +1,20 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-import bcrypt
-
 from src.models.models import User, Role
+from src.auth.password_service import PasswordService
+from src.services.user_service import UserService
 
 
 class UserController:
   # Create
   @staticmethod
   def create(db: Session, name: str, surname: str, username: str, password: str) -> User:
-    hashed = bcrypt.hashpw(
-      password.encode('utf-8'),
-      bcrypt.gensalt()
-    )
-
     new_user = User(
       name_user=name,
       surname_user=surname,
       username_user=username,
-      password_user=hashed.decode('utf-8')  # Hashed password
+      password_user=PasswordService.generate_crypted_password(password)  # Hashed password
     )
 
     db.add(new_user)
@@ -31,13 +26,11 @@ class UserController:
   # Read
   @staticmethod
   def get_by_id(db: Session, user_id: int) -> User | None:
-    return db.get(User, user_id)
+    return UserService.get_by_id(db, user_id)
 
   @staticmethod
   def get_by_username(db: Session, username: str) -> User | None:
-    select_statement = select(User).where(User.username_user == username)
-
-    return db.scalar(select_statement)
+    return UserService.get_by_username(db, username)
 
   # Update
   @staticmethod
@@ -58,12 +51,7 @@ class UserController:
       user.username_user = username
 
     if password is not None:
-      hashed = bcrypt.hashpw(
-        password.encode('utf-8'),
-        bcrypt.gensalt()
-      )
-
-      user.password_user = hashed.decode('utf-8')
+      user.password_user = PasswordService.generate_crypted_password(password)
 
     db.commit()
     db.refresh(user)
@@ -72,20 +60,7 @@ class UserController:
 
   @staticmethod
   def set_roles(db: Session, user_id: int, roles_id: list[int]) -> User | None:
-    user = db.get(User, user_id)
-
-    if not user:
-      return None
-
-    roles_select_statement = select(Role).where(Role.id_role.in_(roles_id))
-    roles = list(db.scalars(roles_select_statement).all())
-
-    user.roles_user = roles
-
-    db.commit()
-    db.refresh(user)
-
-    return user
+    return UserService.set_roles(db, user_id, roles_id)
 
   # Delete
   @staticmethod
