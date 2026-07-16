@@ -25,6 +25,10 @@ class UserController:
 
   # Read
   @staticmethod
+  def get_all(db: Session) -> list[User]:
+    return UserService.get_all(db)
+
+  @staticmethod
   def get_by_id(db: Session, user_id: int) -> User | None:
     return UserService.get_by_id(db, user_id)
 

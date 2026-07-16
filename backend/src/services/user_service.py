@@ -6,6 +6,10 @@ from src.models.models import Role, User
 
 class UserService:
   @staticmethod
+  def get_all(db: Session) -> list[User]:
+    return list(db.scalars(select(User)).all())
+
+  @staticmethod
   def get_by_id(db: Session, user_id: int) -> User | None:
     return db.get(User, user_id)
 
