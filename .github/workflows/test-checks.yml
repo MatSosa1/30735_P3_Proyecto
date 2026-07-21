@@ -1,11 +1,11 @@
-name: Notificar merges a dev/test
+name: Chequeos de staging - test (suite completa + build frontend)
 
 on:
     push:
-        branches: [dev, test]
+        branches: [test]
 
 jobs:
-    notify:
+    checks:
         runs-on: ubuntu-latest
 
         services:
@@ -75,15 +75,6 @@ jobs:
                   pip install bandit
                   bandit -r src -x src/tests -ll -f txt
 
-            - name: Auditoría de dependencias Python (pip-audit)
-              id: pip-audit
-              if: always()
-              working-directory: backend
-              continue-on-error: true
-              run: |
-                  pip install pip-audit
-                  pip-audit -r requirements.txt
-
             - uses: actions/setup-node@v4
               if: always()
               with:
@@ -96,12 +87,12 @@ jobs:
               continue-on-error: true
               run: npm ci
 
-            - name: Auditoría de dependencias del frontend (npm audit)
-              id: npm-audit
+            - name: Build del frontend
+              id: frontend-build
               if: always()
               working-directory: frontend
               continue-on-error: true
-              run: npm audit --audit-level=high
+              run: npm run build
 
             - name: Notificar a Telegram
               if: always()
@@ -113,17 +104,26 @@ jobs:
                   BRANCH: ${{ github.ref_name }}
                   COMMIT_SHA: ${{ github.sha }}
                   COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+                  CHECKS_LABEL: 'suite completa (dependencias ya se auditaron al entrar a dev)'
                   TESTS_OUTCOME: ${{ steps.tests.outcome }}
                   TESTS_SUMMARY: ${{ steps.tests.outputs.summary }}
                   COVERAGE_PCT: ${{ steps.tests.outputs.coverage }}
                   BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
-                  PIP_AUDIT_OUTCOME: ${{ steps.pip-audit.outcome }}
-                  NPM_AUDIT_OUTCOME: ${{ steps.npm-audit.outcome }}
+                  FRONTEND_BUILD_OUTCOME: ${{ steps.frontend-build.outcome }}
 
-            - name: Fail job si Bandit encontró hallazgos medium/high
+            - name: Fail job si Bandit encontró hallazgos medium/high o el build del frontend falló
               if: always()
               run: |
+                  fail=0
+
                   if [ "${{ steps.bandit.outcome }}" = "failure" ]; then
                     echo "::error::Bandit encontró hallazgos de severidad media/alta. Revisa el log del step."
-                    exit 1
+                    fail=1
                   fi
+
+                  if [ "${{ steps.frontend-build.outcome }}" = "failure" ]; then
+                    echo "::error::El build del frontend falló. Revisa el log del step."
+                    fail=1
+                  fi
+
+                  exit "$fail"

@@ -39,13 +39,24 @@ El repositorio se rige por el siguiente modelo de ramas:
 
 # CI/CD
 
-Al hacer push o abrir un Pull Request hacia `main` corre `.github/workflows/ci-cd.yml`: build + tests con
-cobertura (pytest), SAST (Bandit), auditoría de dependencias (pip-audit + npm audit), build del frontend,
-análisis de calidad con **SonarQube self-hosted** (Community, levantado como contenedor efímero dentro del
-propio job — no SonarCloud, para poder configurar un Quality Gate a medida) y escaneo de vulnerabilidades
-en dependencias con **Trivy**. Si todo pasa y el push fue a `main`, se dispara el despliegue en Render. Cada
-corrida notifica el resultado a un grupo de Telegram (inicio del pipeline y resumen final). Los merges a
-`dev`/`test` disparan una notificación liviana aparte (`.github/workflows/branch-notify.yml`).
+El pipeline está repartido en 3 etapas que escalan en rigor a medida que el código avanza por el flujo de
+ramas (`dev` → `test` → `main`), en vez de repetir los mismos chequeos en cada etapa:
+
+- **`dev`** (`.github/workflows/dev-checks.yml`): el gate más rápido — SAST (**Bandit**) y auditoría de
+  dependencias (**pip-audit** + **npm audit**). No corre Postgres ni la suite de tests; es el filtro de
+  entrada para integrar features.
+- **`test`** (`.github/workflows/test-checks.yml`): la suite funcional completa — build + tests con
+  cobertura (**pytest**, con Postgres real como servicio) y build del frontend, más **Bandit** de nuevo
+  (barato, vale la pena reconfirmarlo). No repite pip-audit/npm audit: las dependencias ya se auditaron al
+  entrar a `dev` y el código en `test` es el mismo que pasó ese gate.
+- **`main`** (`.github/workflows/ci-cd.yml`, push o Pull Request): el gate de producción, con todo lo
+  anterior más análisis de calidad con **SonarQube self-hosted** (Community, levantado como contenedor
+  efímero dentro del propio job — no SonarCloud, para poder configurar un Quality Gate a medida) y escaneo
+  de vulnerabilidades en dependencias con **Trivy**. Si todo pasa y el push fue a `main`, se dispara el
+  despliegue en Render.
+
+Cada etapa notifica su resultado a un grupo de Telegram — `main` con inicio de pipeline + resumen final
+completo; `dev`/`test` con un resumen liviano de solo lo que esa etapa efectivamente corrió.
 
 Para que el pipeline funcione hace falta configurar estos secrets en
 **Settings → Secrets and variables → Actions**:
