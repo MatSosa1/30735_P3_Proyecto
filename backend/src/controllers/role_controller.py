@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from src.models.models import Role
+from src.models.models import Role, RoleModule, UserRole
 from src.services.role_service import RoleService
 
 
@@ -68,3 +68,16 @@ class RoleController:
     db.commit()
 
     return True
+
+  # Asignaciones (Sprint 3)
+  @staticmethod
+  def assign_user(db: Session, role_id: int, user_id: int) -> UserRole | None:
+    return RoleService.assign_user(db, role_id, user_id)
+
+  @staticmethod
+  def unassign_user(db: Session, role_id: int, user_id: int) -> bool:
+    return RoleService.unassign_user(db, role_id, user_id)
+
+  @staticmethod
+  def assign_module(db: Session, role_id: int, module_id: int) -> RoleModule | None:
+    return RoleService.assign_module(db, role_id, module_id)
