@@ -5,6 +5,10 @@ from src.models.models import Role
 from src.services.role_service import RoleService
 
 
+class RoleHasActiveUsersError(Exception):
+  pass
+
+
 class RoleController:
   # Create
   @staticmethod
@@ -57,7 +61,10 @@ class RoleController:
     if role is None:
       return False
 
-    db.delete(role)
+    if RoleService.has_active_users(db, role_id):
+      raise RoleHasActiveUsersError()
+
+    role.deactivate()
     db.commit()
 
     return True

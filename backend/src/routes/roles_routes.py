@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from src.routes.dependencies.dependencies import require_module
-from src.controllers.role_controller import RoleController
+from src.controllers.role_controller import RoleController, RoleHasActiveUsersError
 from src.db.session import get_db
 
 
@@ -109,10 +109,16 @@ def delete_role(
   role_id: int,
   db: Session = Depends(get_db)
 ):
-  deleted = RoleController.delete(
-    db,
-    role_id
-  )
+  try:
+    deleted = RoleController.delete(
+      db,
+      role_id
+    )
+  except RoleHasActiveUsersError:
+    raise HTTPException(
+      status_code=status.HTTP_409_CONFLICT,
+      detail='No se puede eliminar un rol con usuarios activos asignados'
+    )
 
   if not deleted:
     raise HTTPException(

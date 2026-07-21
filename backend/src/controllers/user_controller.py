@@ -74,7 +74,7 @@ class UserController:
     if user is None:
       return False
 
-    db.delete(user)
+    user.deactivate()
     db.commit()
 
     return True
