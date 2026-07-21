@@ -11,7 +11,7 @@ INSERT INTO "Roles" (name_role) VALUES
 ('Visitante'),
 ('Administrador');
 
-INSERT INTO "Modules" (id_module, name_module, url_module, parent_id_module) VALUES 
+INSERT INTO "Modules" (id_module, name_module, url_module, parent_id_module) VALUES
 (1, 'Menu', NULL, NULL),
 (2, 'Submenu 1', NULL, 1),
 (3, 'Submenu 2', NULL, 1),
@@ -19,7 +19,12 @@ INSERT INTO "Modules" (id_module, name_module, url_module, parent_id_module) VAL
 (5, 'Item 2', '/item2', 2),
 (6, 'Item 3', '/item3', 3),
 (7, 'Item 4', '/item4', 3),
-(8, 'Item Invisible', '/item_inv', 3);
+(8, 'Item Invisible', '/item_inv', 3),
+-- Navegación real hacia los CRUDs del frontend (frontend/src/router/dynamicRoutes.js)
+(9, 'Administracion', NULL, NULL),
+(10, 'Usuarios', '/users', 9),
+(11, 'Roles', '/roles', 9),
+(12, 'Modulos', '/modules', 9);
 
 -- IDs insertados manualmente arriba; hay que adelantar la secuencia o el próximo INSERT sin id
 -- explícito choca con un id ya existente (ej. intenta reusar id_module=2).
@@ -41,9 +46,13 @@ INSERT INTO "Roles_Modules" (id_role, id_module) VALUES
 (1, 5),
 (1, 6),
 (1, 7),
--- Administrador
+-- Administrador (9 'Administracion' es un nodo agrupador: no necesita asignación directa, el
+-- árbol lo incluye automáticamente al subir desde 10/11/12 — ver ModuleService.get_menu_ancestor_closure)
 (4, 4),
 (4, 5),
 (4, 6),
 (4, 7),
-(4, 8);
+(4, 8),
+(4, 10),
+(4, 11),
+(4, 12);
