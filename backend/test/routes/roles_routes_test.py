@@ -186,3 +186,149 @@ class TestRoleRoutes:
     assert response.json() == {
       'detail': 'Role not found'
     }
+
+
+  # POST /{role_id}/users
+  def test_assign_user_to_role(self):
+    role_response = self.client.post(
+      '/api/roles/',
+      json={'name': 'Rol Asig Usuario'},
+      headers=self.headers
+    )
+    role_id = role_response.json()['id_role']
+
+    user_response = self.client.post(
+      '/api/users/',
+      json={
+        'name': 'Assign',
+        'surname': 'User',
+        'username': 'assign_role_test',
+        'password': 'Str0ngPass!'
+      },
+      headers=self.headers
+    )
+    user_id = user_response.json()['id_user']
+
+    response = self.client.post(
+      f'/api/roles/{role_id}/users',
+      json={'user_id': user_id},
+      headers=self.headers
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body['id_role'] == role_id
+    assert body['id_user'] == user_id
+
+
+  # POST /{role_id}/users - NOT FOUND
+  def test_assign_user_to_role_not_found(self):
+    response = self.client.post(
+      '/api/roles/999999/users',
+      json={'user_id': 1},
+      headers=self.headers
+    )
+
+    assert response.status_code == 404
+
+
+  # DELETE /{role_id}/users/{user_id}
+  def test_unassign_user_from_role(self):
+    role_response = self.client.post(
+      '/api/roles/',
+      json={'name': 'Rol Desasig Usuario'},
+      headers=self.headers
+    )
+    role_id = role_response.json()['id_role']
+
+    user_response = self.client.post(
+      '/api/users/',
+      json={
+        'name': 'Unassign',
+        'surname': 'User',
+        'username': 'unassign_role_test',
+        'password': 'Str0ngPass!'
+      },
+      headers=self.headers
+    )
+    user_id = user_response.json()['id_user']
+
+    self.client.post(
+      f'/api/roles/{role_id}/users',
+      json={'user_id': user_id},
+      headers=self.headers
+    )
+
+    response = self.client.delete(
+      f'/api/roles/{role_id}/users/{user_id}',
+      headers=self.headers
+    )
+
+    assert response.status_code == 204
+
+
+  # DELETE /{role_id}/users/{user_id} - NOT FOUND
+  def test_unassign_user_from_role_not_found(self):
+    response = self.client.delete(
+      '/api/roles/999999/users/999999',
+      headers=self.headers
+    )
+
+    assert response.status_code == 404
+
+
+  # POST /{role_id}/modules
+  def test_assign_module_to_role(self):
+    role_response = self.client.post(
+      '/api/roles/',
+      json={'name': 'Rol Asig Modulo'},
+      headers=self.headers
+    )
+    role_id = role_response.json()['id_role']
+
+    module_response = self.client.post(
+      '/api/modules/',
+      json={'name': 'Modulo Test', 'url': '/modulo-test', 'parent_id': None},
+      headers=self.headers
+    )
+    module_id = module_response.json()['id_module']
+
+    response = self.client.post(
+      f'/api/roles/{role_id}/modules',
+      json={'module_id': module_id},
+      headers=self.headers
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body['id_role'] == role_id
+    assert body['id_module'] == module_id
+
+
+  # POST /{role_id}/menus (mismo mecanismo que /modules)
+  def test_assign_menu_to_role(self):
+    role_response = self.client.post(
+      '/api/roles/',
+      json={'name': 'Rol Asignacion Menu'},
+      headers=self.headers
+    )
+    role_id = role_response.json()['id_role']
+
+    module_response = self.client.post(
+      '/api/modules/',
+      json={'name': 'Item Test', 'url': '/item-test', 'parent_id': None},
+      headers=self.headers
+    )
+    module_id = module_response.json()['id_module']
+
+    response = self.client.post(
+      f'/api/roles/{role_id}/menus',
+      json={'module_id': module_id},
+      headers=self.headers
+    )
+
+    assert response.status_code == 201

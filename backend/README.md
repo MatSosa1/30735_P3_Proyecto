@@ -300,6 +300,15 @@ Si el módulo no existe:
 }
 ```
 
+Si el nuevo `parent_id` generaría una referencia cíclica (el propio módulo apareciendo en su
+cadena de ancestros): `400`.
+
+```json
+{
+  "detail": "El nuevo parent_id generaría una referencia cíclica"
+}
+```
+
 #### `PUT /api/modules/{module_id}/roles`
 
 Asigna una lista de roles a un módulo.
@@ -498,6 +507,72 @@ Si el rol no existe:
 }
 ```
 
+#### `POST /api/roles/{role_id}/users`
+
+Asigna un usuario existente a un rol (tabla pivote `Users_Roles`). Si la asignación ya existía pero
+estaba inactiva, la reactiva.
+
+##### Request Body
+
+```json
+{ "user_id": 1 }
+```
+
+##### Respuesta exitosa (`201`)
+
+```json
+{ "id_role": 1, "id_user": 1, "estado": "ACTIVO", "fecha_creacion": "..." }
+```
+
+##### Respuesta de error
+
+`404` si el rol o el usuario no existen.
+
+#### `DELETE /api/roles/{role_id}/users/{user_id}`
+
+Desasigna un usuario de un rol. A diferencia del resto de entidades, esta operación es una
+**eliminación física** de la fila en la tabla pivote (así lo exige el spec para este caso puntual).
+
+##### Respuesta exitosa
+
+`204`, sin contenido.
+
+##### Respuesta de error
+
+`404` si la asignación no existe.
+
+#### `POST /api/roles/{role_id}/modules`
+
+Vincula un módulo completo a un rol, desde el lado de "roles" (simétrico a
+`PUT /api/modules/{module_id}/roles`).
+
+##### Request Body
+
+```json
+{ "module_id": 4 }
+```
+
+##### Respuesta exitosa (`201`)
+
+```json
+{ "id_role": 1, "id_module": 4, "estado": "ACTIVO", "fecha_creacion": "..." }
+```
+
+#### `POST /api/roles/{role_id}/menus`
+
+Asigna un ítem/submenú puntual a un rol. Mismo mecanismo que `POST /api/roles/{role_id}/modules`
+(ambos son filas de `Module`); el endpoint existe por separado porque el spec lo nombra así.
+
+##### Request Body
+
+```json
+{ "module_id": 8 }
+```
+
+##### Respuesta exitosa (`201`)
+
+Igual formato que `POST /api/roles/{role_id}/modules`.
+
 
 ### Users
 
@@ -624,7 +699,7 @@ Si el usuario no existe:
 
 #### `DELETE /api/users/{user_id}`
 
-Elimina un usuario mediante su identificador.
+Elimina un usuario mediante su identificador (soft delete: se marca `estado=INACTIVO`, no es DELETE físico).
 
 ##### Parámetros de ruta
 
@@ -645,3 +720,44 @@ Si el usuario no existe:
   "detail": "User not found"
 }
 ```
+
+
+### Menús
+
+#### `GET /api/menus/tree`
+
+Devuelve el árbol jerárquico completo de módulos/submenús/ítems accesibles al **rol del JWT actual**
+(no requiere `require_module`, cualquier token válido puede consultar su propio menú). Se resuelve con
+una única consulta recursiva (CTE, `WITH RECURSIVE`) para evitar el problema N+1 sin importar la
+profundidad del árbol.
+
+Si un módulo intermedio está `INACTIVO`, todo su subárbol deja de aparecer, aunque los módulos hijos
+sigan individualmente `ACTIVO`.
+
+##### Respuesta exitosa
+
+```json
+[
+  {
+    "id_module": 1,
+    "name_module": "Menu",
+    "url_module": null,
+    "parent_id_module": null,
+    "children": [
+      {
+        "id_module": 2,
+        "name_module": "Submenu 1",
+        "url_module": null,
+        "parent_id_module": 1,
+        "children": [
+          { "id_module": 4, "name_module": "Item 1", "url_module": "/item1", "parent_id_module": 2, "children": [] }
+        ]
+      }
+    ]
+  }
+]
+```
+
+##### Respuesta de error
+
+`403` si el rol del token ya no existe o está inactivo.

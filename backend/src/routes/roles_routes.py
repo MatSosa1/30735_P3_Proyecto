@@ -18,6 +18,14 @@ class RolePatch(BaseModel):
   name: str | None = None
 
 
+class RoleAssignUser(BaseModel):
+  user_id: int
+
+
+class RoleAssignModule(BaseModel):
+  module_id: int
+
+
 router = APIRouter(
   prefix='/roles',
   tags=['Roles'],
@@ -127,3 +135,103 @@ def delete_role(
     )
 
   return None
+
+
+# ASSIGN USER
+@router.post(
+  '/{role_id}/users',
+  status_code=status.HTTP_201_CREATED
+)
+def assign_user_to_role(
+  role_id: int,
+  payload: RoleAssignUser,
+  db: Session = Depends(get_db)
+):
+  assignment = RoleController.assign_user(
+    db,
+    role_id,
+    payload.user_id
+  )
+
+  if assignment is None:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail='Role or User not found'
+    )
+
+  return assignment
+
+
+# UNASSIGN USER
+@router.delete(
+  '/{role_id}/users/{user_id}',
+  status_code=status.HTTP_204_NO_CONTENT
+)
+def unassign_user_from_role(
+  role_id: int,
+  user_id: int,
+  db: Session = Depends(get_db)
+):
+  deleted = RoleController.unassign_user(
+    db,
+    role_id,
+    user_id
+  )
+
+  if not deleted:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail='Assignment not found'
+    )
+
+  return None
+
+
+# ASSIGN MODULE
+@router.post(
+  '/{role_id}/modules',
+  status_code=status.HTTP_201_CREATED
+)
+def assign_module_to_role(
+  role_id: int,
+  payload: RoleAssignModule,
+  db: Session = Depends(get_db)
+):
+  assignment = RoleController.assign_module(
+    db,
+    role_id,
+    payload.module_id
+  )
+
+  if assignment is None:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail='Role or Module not found'
+    )
+
+  return assignment
+
+
+# ASSIGN MENU (item/submenu puntual — mismo modelo Module que /modules)
+@router.post(
+  '/{role_id}/menus',
+  status_code=status.HTTP_201_CREATED
+)
+def assign_menu_to_role(
+  role_id: int,
+  payload: RoleAssignModule,
+  db: Session = Depends(get_db)
+):
+  assignment = RoleController.assign_module(
+    db,
+    role_id,
+    payload.module_id
+  )
+
+  if assignment is None:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail='Role or Module not found'
+    )
+
+  return assignment

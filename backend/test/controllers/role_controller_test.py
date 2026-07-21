@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.controllers.module_controller import ModuleController
 from src.controllers.role_controller import RoleController, RoleHasActiveUsersError
 from src.controllers.user_controller import UserController
-from src.models.models import Base, EstadoEnum, Role, UserRole
+from src.models.models import Base, EstadoEnum, Role, RoleModule, UserRole
 
 
 engine = create_engine(
@@ -185,3 +186,76 @@ class TestRoleController:
     )
 
     assert role is None
+
+  def test_assign_user(self):
+    role = RoleController.create(self.db, "Administrador")
+    user = UserController.create(self.db, "Mateo", "Sosa", "msosa", "1234")
+
+    assignment = RoleController.assign_user(self.db, role.id_role, user.id_user)
+
+    assert assignment is not None
+    assert assignment.id_role == role.id_role
+    assert assignment.id_user == user.id_user
+    assert assignment.estado == EstadoEnum.ACTIVO
+
+  def test_assign_user_reactivates_existing_inactive_assignment(self):
+    role = RoleController.create(self.db, "Administrador")
+    user = UserController.create(self.db, "Mateo", "Sosa", "msosa", "1234")
+
+    assignment = RoleController.assign_user(self.db, role.id_role, user.id_user)
+    # UserRole no hereda AuditMixin (no tiene .deactivate()); se asigna estado directo
+    assignment.estado = EstadoEnum.INACTIVO
+    self.db.commit()
+
+    reactivated = RoleController.assign_user(self.db, role.id_role, user.id_user)
+
+    assert reactivated is not None
+    assert reactivated.id_user == user.id_user
+    assert reactivated.estado == EstadoEnum.ACTIVO
+
+  def test_assign_user_nonexistent_role_or_user(self):
+    role = RoleController.create(self.db, "Administrador")
+
+    assert RoleController.assign_user(self.db, role.id_role, 999) is None
+    assert RoleController.assign_user(self.db, 999, 1) is None
+
+  def test_unassign_user(self):
+    role = RoleController.create(self.db, "Administrador")
+    user = UserController.create(self.db, "Mateo", "Sosa", "msosa", "1234")
+
+    RoleController.assign_user(self.db, role.id_role, user.id_user)
+
+    deleted = RoleController.unassign_user(self.db, role.id_role, user.id_user)
+
+    assert deleted is True
+
+    still_exists = self.db.scalar(
+      select(UserRole)
+      .where(UserRole.id_role == role.id_role, UserRole.id_user == user.id_user)
+      .execution_options(include_inactive=True)
+    )
+
+    # A diferencia de Usuarios/Roles/Modulos, esta desasignacion es fisica de verdad
+    assert still_exists is None
+
+  def test_unassign_user_nonexistent(self):
+    role = RoleController.create(self.db, "Administrador")
+
+    assert RoleController.unassign_user(self.db, role.id_role, 999) is False
+
+  def test_assign_module(self):
+    role = RoleController.create(self.db, "Administrador")
+    module = ModuleController.create(self.db, "Usuarios", "/users", None)
+
+    assignment = RoleController.assign_module(self.db, role.id_role, module.id_module)
+
+    assert assignment is not None
+    assert assignment.id_role == role.id_role
+    assert assignment.id_module == module.id_module
+    assert assignment.estado == EstadoEnum.ACTIVO
+
+  def test_assign_module_nonexistent_role_or_module(self):
+    role = RoleController.create(self.db, "Administrador")
+
+    assert RoleController.assign_module(self.db, role.id_role, 999) is None
+    assert RoleController.assign_module(self.db, 999, 1) is None
