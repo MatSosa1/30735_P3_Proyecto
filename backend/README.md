@@ -59,7 +59,7 @@ Esto abrirá el backend en el puerto 8000.
 
 ### Auth
 
-#### `POST /auth/set_role`
+#### `POST /api/auth/set_role`
 
 Obtiene los roles asociados a un usuario después de validar sus credenciales.
 
@@ -98,7 +98,7 @@ Si el usuario no existe o no tiene roles asignados:
 
 ```
 
-#### `POST /auth/login`
+#### `POST /api/auth/login`
 
 Autentica al usuario utilizando sus credenciales y el rol seleccionado. Si la autenticación es exitosa, genera un token de acceso.
 
@@ -135,7 +135,7 @@ Si las credenciales no son válidas:
 
 ### Modules
 
-#### `GET /modules/`
+#### `GET /api/modules/`
 
 Obtiene la lista de todos los módulos registrados.
 
@@ -152,7 +152,7 @@ Obtiene la lista de todos los módulos registrados.
 ]
 ```
 
-#### `GET /modules/{module_id}`
+#### `GET /api/modules/{module_id}`
 
 Obtiene la información de un módulo específico mediante su identificador.
 
@@ -183,7 +183,7 @@ Si el módulo no existe:
 }
 ```
 
-#### `POST /modules/`
+#### `POST /api/modules/`
 
 Crea un nuevo módulo.
 
@@ -208,7 +208,7 @@ Crea un nuevo módulo.
 }
 ```
 
-#### `PATCH /modules/{module_id}`
+#### `PATCH /api/modules/{module_id}`
 
 Actualiza parcialmente la información de un módulo existente.
 
@@ -251,7 +251,7 @@ Si el módulo no existe:
 }
 ```
 
-#### `PUT /modules/{module_id}/roles`
+#### `PUT /api/modules/{module_id}/roles`
 
 Asigna una lista de roles a un módulo.
 
@@ -290,7 +290,7 @@ Si el módulo no existe:
 }
 ```
 
-#### `DELETE /modules/{module_id}`
+#### `DELETE /api/modules/{module_id}`
 
 Elimina un módulo mediante su identificador.
 
@@ -321,7 +321,7 @@ Si el módulo no existe:
 
 ### Roles
 
-#### `GET /roles/`
+#### `GET /api/roles/`
 
 Obtiene la lista de todos los roles registrados.
 
@@ -336,7 +336,7 @@ Obtiene la lista de todos los roles registrados.
 ]
 ```
 
-#### `GET /roles/{role_id}`
+#### `GET /api/roles/{role_id}`
 
 Obtiene la información de un rol específico mediante su identificador.
 
@@ -365,7 +365,7 @@ Si el rol no existe:
 }
 ```
 
-#### `POST /roles/`
+#### `POST /api/roles/`
 
 Crea un nuevo rol.
 
@@ -386,7 +386,7 @@ Crea un nuevo rol.
 }
 ```
 
-#### `PATCH /roles/{role_id}`
+#### `PATCH /api/roles/{role_id}`
 
 Actualiza parcialmente la información de un rol existente.
 
@@ -425,7 +425,7 @@ Si el rol no existe:
 }
 ```
 
-#### `DELETE /roles/{role_id}`
+#### `DELETE /api/roles/{role_id}`
 
 Elimina un rol mediante su identificador.
 
@@ -452,7 +452,7 @@ Si el rol no existe:
 
 ### Users
 
-#### `GET /users/`
+#### `GET /api/users/`
 
 Obtiene la lista de todos los usuarios registrados.
 
@@ -470,7 +470,7 @@ Obtiene la lista de todos los usuarios registrados.
 
 ```
 
-#### `GET /users/{user_id}`
+#### `GET /api/users/{user_id}`
 
 Obtiene la información de un usuario específico mediante su identificador.
 
@@ -501,7 +501,7 @@ Si el usuario no existe:
 }
 ```
 
-#### `POST /users/`
+#### `POST /api/users/`
 
 Crea un nuevo usuario.
 
@@ -527,7 +527,7 @@ Crea un nuevo usuario.
 }
 ```
 
-#### `PATCH /users/{user_id}`
+#### `PATCH /api/users/{user_id}`
 
 Actualiza parcialmente la información de un usuario existente.
 
@@ -571,7 +571,7 @@ Si el usuario no existe:
 }
 ```
 
-#### `DELETE /users/{user_id}`
+#### `DELETE /api/users/{user_id}`
 
 Elimina un usuario mediante su identificador.
 

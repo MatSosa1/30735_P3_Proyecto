@@ -38,7 +38,7 @@ class TestModuleRoutes:
   # GET /{module_id}
   def test_get_module_by_id(self):
     response = self.client.get(
-      '/modules/4',
+      '/api/modules/4',
       headers=self.headers
     )
 
@@ -52,7 +52,7 @@ class TestModuleRoutes:
   # GET /{module_id} - NOT FOUND
   def test_get_module_by_id_not_found(self):
     response = self.client.get(
-      '/modules/999999',
+      '/api/modules/999999',
       headers=self.headers
     )
 
@@ -66,7 +66,7 @@ class TestModuleRoutes:
   # POST /
   def test_post_module(self):
     response = self.client.post(
-      '/modules/',
+      '/api/modules/',
       json={
         'name': 'Test Module',
         'url': '/test-module',
@@ -87,7 +87,7 @@ class TestModuleRoutes:
   # PATCH /{module_id}
   def test_patch_module(self):
     response = self.client.patch(
-      '/modules/4',
+      '/api/modules/4',
       json={
         'name': 'Updated Module'
       },
@@ -105,7 +105,7 @@ class TestModuleRoutes:
   # PATCH /{module_id} - NOT FOUND
   def test_patch_module_not_found(self):
     response = self.client.patch(
-      '/modules/999999',
+      '/api/modules/999999',
       json={
         'name': 'Updated Module'
       },
@@ -122,7 +122,7 @@ class TestModuleRoutes:
   # PUT /{module_id}/roles
   def test_put_module_roles(self):
     response = self.client.put(
-      '/modules/4/roles',
+      '/api/modules/4/roles',
       json={
         'roles_id': [1]
       },
@@ -139,7 +139,7 @@ class TestModuleRoutes:
   # PUT /{module_id}/roles - NOT FOUND
   def test_put_module_roles_not_found(self):
     response = self.client.put(
-      '/modules/999999/roles',
+      '/api/modules/999999/roles',
       json={
         'roles_id': [1]
       },
@@ -156,7 +156,7 @@ class TestModuleRoutes:
   # DELETE /{module_id}
   def test_delete_module(self):
     create_response = self.client.post(
-      '/modules/',
+      '/api/modules/',
       json={
         'name': 'Module to Delete',
         'url': '/module-to-delete',
@@ -170,7 +170,7 @@ class TestModuleRoutes:
     module_id = create_response.json()['id_module']
 
     response = self.client.delete(
-      f'/modules/{module_id}',
+      f'/api/modules/{module_id}',
       headers=self.headers
     )
 
@@ -182,7 +182,7 @@ class TestModuleRoutes:
   # DELETE /{module_id} - NOT FOUND
   def test_delete_module_not_found(self):
     response = self.client.delete(
-      '/modules/999999',
+      '/api/modules/999999',
       headers=self.headers
     )
 
