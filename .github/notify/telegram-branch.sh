@@ -13,55 +13,69 @@ esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 
 short_sha="${COMMIT_SHA:0:7}"
 
-# --- Tests + cobertura ---
-if [ "${TESTS_OUTCOME:-}" = "success" ]; then
-  tests_emoji="✅"
-elif [ "${TESTS_OUTCOME:-}" = "failure" ]; then
-  tests_emoji="❌"
-else
-  tests_emoji="❔"
-fi
-tests_summary="${TESTS_SUMMARY:-sin resumen}"
-coverage_line=""
-if [ -n "${COVERAGE_PCT:-}" ]; then
-  coverage_line=" · Cobertura: ${COVERAGE_PCT}%"
+blocks=""
+
+# --- Tests + cobertura (solo si esta etapa los corrió) ---
+if [ -n "${TESTS_OUTCOME:-}" ]; then
+  if [ "${TESTS_OUTCOME}" = "success" ]; then
+    tests_emoji="✅"
+  elif [ "${TESTS_OUTCOME}" = "failure" ]; then
+    tests_emoji="❌"
+  else
+    tests_emoji="❔"
+  fi
+  coverage_line=""
+  [ -n "${COVERAGE_PCT:-}" ] && coverage_line=" · Cobertura: ${COVERAGE_PCT}%"
+  blocks="${blocks}"$'\n'"${tests_emoji} <b>Tests (pytest)</b>: $(printf '%s' "${TESTS_SUMMARY:-sin resumen}" | esc)${coverage_line}"
 fi
 
-# --- Bandit ---
-if [ "${BANDIT_OUTCOME:-}" = "success" ]; then
-  bandit_emoji="✅"; bandit_text="sin hallazgos medium/high"
-elif [ "${BANDIT_OUTCOME:-}" = "failure" ]; then
-  bandit_emoji="❌"; bandit_text="con hallazgos medium/high"
-else
-  bandit_emoji="❔"; bandit_text="no se ejecutó"
+# --- Build del frontend (solo si esta etapa lo corrió) ---
+if [ -n "${FRONTEND_BUILD_OUTCOME:-}" ]; then
+  if [ "${FRONTEND_BUILD_OUTCOME}" = "success" ]; then
+    build_emoji="✅"; build_text="OK"
+  else
+    build_emoji="❌"; build_text="FALLÓ"
+  fi
+  blocks="${blocks}"$'\n'"${build_emoji} <b>Build frontend</b>: ${build_text}"
 fi
 
-# --- pip-audit ---
-if [ "${PIP_AUDIT_OUTCOME:-}" = "success" ]; then
-  pip_emoji="✅"; pip_text="sin vulnerabilidades conocidas"
-elif [ "${PIP_AUDIT_OUTCOME:-}" = "failure" ]; then
-  pip_emoji="❌"; pip_text="con vulnerabilidades conocidas"
-else
-  pip_emoji="❔"; pip_text="no se ejecutó"
+# --- Bandit (solo si esta etapa lo corrió) ---
+if [ -n "${BANDIT_OUTCOME:-}" ]; then
+  if [ "${BANDIT_OUTCOME}" = "success" ]; then
+    bandit_emoji="✅"; bandit_text="sin hallazgos medium/high"
+  else
+    bandit_emoji="❌"; bandit_text="con hallazgos medium/high"
+  fi
+  blocks="${blocks}"$'\n'"${bandit_emoji} <b>Bandit (SAST)</b>: ${bandit_text}"
 fi
 
-# --- npm audit ---
-if [ "${NPM_AUDIT_OUTCOME:-}" = "success" ]; then
-  npm_emoji="✅"; npm_text="sin vulnerabilidades HIGH/CRITICAL"
-elif [ "${NPM_AUDIT_OUTCOME:-}" = "failure" ]; then
-  npm_emoji="❌"; npm_text="con vulnerabilidades HIGH/CRITICAL"
-else
-  npm_emoji="❔"; npm_text="no se ejecutó"
+# --- pip-audit (solo si esta etapa lo corrió) ---
+if [ -n "${PIP_AUDIT_OUTCOME:-}" ]; then
+  if [ "${PIP_AUDIT_OUTCOME}" = "success" ]; then
+    pip_emoji="✅"; pip_text="sin vulnerabilidades conocidas"
+  else
+    pip_emoji="❌"; pip_text="con vulnerabilidades conocidas"
+  fi
+  blocks="${blocks}"$'\n'"${pip_emoji} <b>pip-audit</b>: ${pip_text}"
 fi
+
+# --- npm audit (solo si esta etapa lo corrió) ---
+if [ -n "${NPM_AUDIT_OUTCOME:-}" ]; then
+  if [ "${NPM_AUDIT_OUTCOME}" = "success" ]; then
+    npm_emoji="✅"; npm_text="sin vulnerabilidades HIGH/CRITICAL"
+  else
+    npm_emoji="❌"; npm_text="con vulnerabilidades HIGH/CRITICAL"
+  fi
+  blocks="${blocks}"$'\n'"${npm_emoji} <b>npm audit</b>: ${npm_text}"
+fi
+
+checks_line=""
+[ -n "${CHECKS_LABEL:-}" ] && checks_line=$'\n'"<i>$(printf '%s' "$CHECKS_LABEL" | esc)</i>"
 
 MSG="$(cat <<EOF
 🔀 <b>Merge a $(printf '%s' "${BRANCH:-?}" | esc) — Master Gateway</b>
-<code>${short_sha}</code> · $(printf '%s' "${COMMIT_MESSAGE:-}" | esc)
-
-${tests_emoji} <b>Tests (pytest)</b>: $(printf '%s' "$tests_summary" | esc)${coverage_line}
-${bandit_emoji} <b>Bandit (SAST)</b>: ${bandit_text}
-${pip_emoji} <b>pip-audit</b>: ${pip_text}
-${npm_emoji} <b>npm audit</b>: ${npm_text}
+<code>${short_sha}</code> · $(printf '%s' "${COMMIT_MESSAGE:-}" | esc)${checks_line}
+${blocks}
 
 🔗 <a href="${RUN_URL:-}">Ver ejecución en GitHub Actions</a>
 EOF

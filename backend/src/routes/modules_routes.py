@@ -129,8 +129,7 @@ def put_module_roles(
 @router.delete('/{module_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_module(
   module_id: int,
-  db: Session = Depends(get_db),
-  
+  db: Session = Depends(get_db)
 ):
   deleted = ModuleController.delete(db, module_id)
 
@@ -140,6 +139,4 @@ def delete_module(
       detail='Module not found'
     )
 
-  return {
-    'message': 'Module deleted successfully'
-  }
+  return None

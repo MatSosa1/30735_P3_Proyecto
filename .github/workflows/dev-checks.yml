@@ -1,0 +1,69 @@
+name: Chequeos rapidos - dev (SAST + dependencias)
+
+on:
+    push:
+        branches: [dev]
+
+jobs:
+    checks:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+
+            - name: SAST (Bandit) - solo severidad media/alta
+              id: bandit
+              working-directory: backend
+              continue-on-error: true
+              run: |
+                  pip install bandit
+                  bandit -r src -x src/tests -ll -f txt
+
+            - name: Auditoría de dependencias Python (pip-audit)
+              id: pip-audit
+              continue-on-error: true
+              working-directory: backend
+              run: |
+                  pip install pip-audit
+                  pip-audit -r requirements.txt
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Instalar dependencias del frontend
+              working-directory: frontend
+              run: npm ci
+
+            - name: Auditoría de dependencias del frontend (npm audit)
+              id: npm-audit
+              continue-on-error: true
+              working-directory: frontend
+              run: npm audit --audit-level=high
+
+            - name: Notificar a Telegram
+              if: always()
+              run: .github/notify/telegram-branch.sh
+              env:
+                  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+                  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  BRANCH: ${{ github.ref_name }}
+                  COMMIT_SHA: ${{ github.sha }}
+                  COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+                  CHECKS_LABEL: 'gate rápido de integración (sin tests funcionales todavía)'
+                  BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
+                  PIP_AUDIT_OUTCOME: ${{ steps.pip-audit.outcome }}
+                  NPM_AUDIT_OUTCOME: ${{ steps.npm-audit.outcome }}
+
+            - name: Fail job si Bandit encontró hallazgos medium/high
+              if: always()
+              run: |
+                  if [ "${{ steps.bandit.outcome }}" = "failure" ]; then
+                    echo "::error::Bandit encontró hallazgos de severidad media/alta. Revisa el log del step."
+                    exit 1
+                  fi
