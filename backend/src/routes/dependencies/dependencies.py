@@ -1,10 +1,12 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
 from jwt import InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.controllers.auth_controller import AuthController
 from src.db.session import get_db
+from src.models.models import RoleModule, UserRole
 from src.services.module_service import ModuleService
 from src.services.role_service import RoleService
 from src.services.user_service import UserService
@@ -70,10 +72,15 @@ def require_module(module_id: int):
         detail='User not found'
       )
 
-    has_role = any(
-      role.id_role == role_id
-      for role in user.roles_user
-    )
+    # Consultas directas contra las tablas pivote en vez de recorrer user.roles_user /
+    # module.roles_module: evita que las relaciones queden cacheadas en el objeto ORM que la
+    # ruta devuelve tal cual (lo que provocaba una recursión infinita al serializar la respuesta).
+    has_role = db.scalar(
+      select(UserRole).where(
+        UserRole.id_user == user_id,
+        UserRole.id_role == role_id
+      )
+    ) is not None
 
     if not has_role:
       raise HTTPException(
@@ -92,10 +99,12 @@ def require_module(module_id: int):
         detail='Module not found'
       )
 
-    has_access = any(
-      role.id_role == role_id
-      for role in module.roles_module
-    )
+    has_access = db.scalar(
+      select(RoleModule).where(
+        RoleModule.id_role == role_id,
+        RoleModule.id_module == module_id
+      )
+    ) is not None
 
     if not has_access:
       raise HTTPException(

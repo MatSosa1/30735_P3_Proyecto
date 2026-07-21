@@ -1,8 +1,9 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from jwt import InvalidTokenError
 
-from src.models.models import Module, Role
+from src.models.models import Module, Role, RoleModule
 from src.auth.jwt_service import JwtService
 from src.auth.password_service import PasswordService
 from src.services.user_service import UserService
@@ -55,9 +56,13 @@ class AuthController:
       if not user or not role:
         return False
 
-      if role in module.roles_module:  # Maybe only check the ids of the module
-        return True
+      has_access = db.scalar(
+        select(RoleModule).where(
+          RoleModule.id_role == user_actual_role,
+          RoleModule.id_module == module.id_module
+        )
+      ) is not None
 
-      return False
+      return has_access
     except InvalidTokenError:
       return False
