@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.controllers.module_controller import ModuleController
+from src.controllers.module_controller import ModuleController, ModuleCycleError
 from src.controllers.role_controller import RoleController
 from src.models.models import Base, EstadoEnum, Module
 
@@ -194,3 +194,79 @@ class TestModuleController:
     )
 
     assert result is None
+
+  # --- Anti-ciclo (parent_id_module) ---
+
+  def test_update_parent_id_self_reference_is_rejected(self):
+    module = ModuleController.create(self.db, "Menu", None, None)
+
+    try:
+      ModuleController.update(self.db, module.id_module, parent_id=module.id_module)
+      assert False, "Expected ModuleCycleError"
+    except ModuleCycleError:
+      pass
+
+  def test_update_parent_id_deep_cycle_is_rejected(self):
+    root = ModuleController.create(self.db, "Menu", None, None)
+    child = ModuleController.create(self.db, "Submenu", None, root.id_module)
+    grandchild = ModuleController.create(self.db, "Item", "/item", child.id_module)
+
+    # Intentar que 'root' pase a ser hijo de su propio nieto -> ciclo
+    try:
+      ModuleController.update(self.db, root.id_module, parent_id=grandchild.id_module)
+      assert False, "Expected ModuleCycleError"
+    except ModuleCycleError:
+      pass
+
+  def test_update_parent_id_valid_reparenting_is_allowed(self):
+    root = ModuleController.create(self.db, "Menu", None, None)
+    other_root = ModuleController.create(self.db, "Otro Menu", None, None)
+    child = ModuleController.create(self.db, "Submenu", None, root.id_module)
+
+    updated = ModuleController.update(self.db, child.id_module, parent_id=other_root.id_module)
+
+    assert updated is not None
+    assert updated.parent_id_module == other_root.id_module
+
+  # --- Árbol de menú (GET /menus/tree) ---
+
+  def test_menu_tree_for_role(self):
+    root = ModuleController.create(self.db, "Menu", None, None)
+    child = ModuleController.create(self.db, "Submenu", None, root.id_module)
+    item = ModuleController.create(self.db, "Item 1", "/item1", child.id_module)
+
+    role = RoleController.create(self.db, "Vendedor")
+    RoleController.assign_module(self.db, role.id_role, item.id_module)
+
+    tree = ModuleController.get_menu_tree(self.db, role.id_role)
+
+    assert len(tree) == 1
+    assert tree[0]['id_module'] == root.id_module
+    assert len(tree[0]['children']) == 1
+    assert tree[0]['children'][0]['id_module'] == child.id_module
+    assert len(tree[0]['children'][0]['children']) == 1
+    assert tree[0]['children'][0]['children'][0]['id_module'] == item.id_module
+
+  def test_menu_tree_empty_for_role_without_modules(self):
+    role = RoleController.create(self.db, "Visitante")
+
+    tree = ModuleController.get_menu_tree(self.db, role.id_role)
+
+    assert tree == []
+
+  def test_menu_tree_hides_subtree_of_inactive_ancestor(self):
+    root = ModuleController.create(self.db, "Menu", None, None)
+    child = ModuleController.create(self.db, "Submenu", None, root.id_module)
+    item = ModuleController.create(self.db, "Item 1", "/item1", child.id_module)
+
+    role = RoleController.create(self.db, "Vendedor")
+    RoleController.assign_module(self.db, role.id_role, item.id_module)
+
+    # 'child' se inactiva (ej. se "elimina" el submenu) — 'item' sigue ACTIVO individualmente
+    ModuleController.delete(self.db, child.id_module)
+
+    tree = ModuleController.get_menu_tree(self.db, role.id_role)
+
+    # El item queda oculto porque su ancestro ('child') esta INACTIVO, aunque el item
+    # mismo siga ACTIVO — "al inactivar un módulo, sus menús asociados no deben renderizarse"
+    assert tree == []

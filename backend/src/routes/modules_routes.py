@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from src.routes.dependencies.dependencies import require_module
-from src.controllers.module_controller import ModuleController
+from src.controllers.module_controller import ModuleController, ModuleCycleError
 from src.db.session import get_db
 
 
@@ -80,13 +80,19 @@ def patch_module(
   module: ModulePatch,
   db: Session = Depends(get_db)
 ):
-  updated_module = ModuleController.update(
-    db=db,
-    module_id=module_id,
-    name=module.name,
-    url=module.url,
-    parent_id=module.parent_id
-  )
+  try:
+    updated_module = ModuleController.update(
+      db=db,
+      module_id=module_id,
+      name=module.name,
+      url=module.url,
+      parent_id=module.parent_id
+    )
+  except ModuleCycleError:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='El nuevo parent_id generaría una referencia cíclica'
+    )
 
   if updated_module is None:
     raise HTTPException(
