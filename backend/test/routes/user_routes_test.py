@@ -39,7 +39,7 @@ class TestUserRoutes:
   # GET /
   def test_get_all_users(self):
     response = self.client.get(
-      '/users/',
+      '/api/users/',
       headers=self.headers
     )
 
@@ -53,7 +53,7 @@ class TestUserRoutes:
   # GET /{user_id}
   def test_get_user_by_id(self):
     response = self.client.get(
-      '/users/1',
+      '/api/users/1',
       headers=self.headers
     )
 
@@ -67,7 +67,7 @@ class TestUserRoutes:
   # GET /{user_id} - NOT FOUND
   def test_get_user_by_id_not_found(self):
     response = self.client.get(
-      '/users/999999',
+      '/api/users/999999',
       headers=self.headers
     )
 
@@ -81,7 +81,7 @@ class TestUserRoutes:
   # POST /
   def test_post_user(self):
     response = self.client.post(
-      '/users/',
+      '/api/users/',
       json={
         'name': 'Test',
         'surname': 'User',
@@ -104,7 +104,7 @@ class TestUserRoutes:
   # PATCH /{user_id}
   def test_patch_user(self):
     create_response = self.client.post(
-      '/users/',
+      '/api/users/',
       json={
         'name': 'User',
         'surname': 'Before Update',
@@ -119,7 +119,7 @@ class TestUserRoutes:
     user_id = create_response.json()['id_user']
 
     response = self.client.patch(
-      f'/users/{user_id}',
+      f'/api/users/{user_id}',
       json={
         'name': 'Updated User'
       },
@@ -137,7 +137,7 @@ class TestUserRoutes:
   # PATCH /{user_id} - NOT FOUND
   def test_patch_user_not_found(self):
     response = self.client.patch(
-      '/users/999999',
+      '/api/users/999999',
       json={
         'name': 'Updated User'
       },
@@ -154,7 +154,7 @@ class TestUserRoutes:
   # DELETE /{user_id}
   def test_delete_user(self):
     create_response = self.client.post(
-      '/users/',
+      '/api/users/',
       json={
         'name': 'User',
         'surname': 'To Delete',
@@ -169,7 +169,7 @@ class TestUserRoutes:
     user_id = create_response.json()['id_user']
 
     response = self.client.delete(
-      f'/users/{user_id}',
+      f'/api/users/{user_id}',
       headers=self.headers
     )
 
@@ -181,7 +181,7 @@ class TestUserRoutes:
   # DELETE /{user_id} - NOT FOUND
   def test_delete_user_not_found(self):
     response = self.client.delete(
-      '/users/999999',
+      '/api/users/999999',
       headers=self.headers
     )
 

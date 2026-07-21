@@ -25,3 +25,14 @@ centralice la gestión de identidades, roles y navegación, sirviendo como gatew
 3. Desarrollar el flujo de inicio de sesión donde el usuario seleccione activamente el rol con el que desea operar, cargando únicamente el módulo y menú asociados a dicha elección.
 4. Configurar una arquitectura preparada para la integración de futuros microservicios (ej. Módulo de Ventas), donde el microservicio maestro emita y valide tokens (JWT/OAuth2 ) bajo el modelo Zero Trust.
 5. Aplicar el enfoque Shift-Left mediante pruebas de seguridad unitarias, validación de entradas (sanitización), protección contra inyección SQL (vı́a ORM) y cifrado de contraseñas.
+
+# Estrategia de Ramas (Git)
+
+El repositorio se rige por el siguiente modelo de ramas:
+
+- **`main`**: Rama de producción. Inmutable excepto mediante Pull Requests desde `test`. Únicamente los
+  merges en esta rama disparan el despliegue automático.
+- **`test`**: Rama de pruebas/QA. Aquí se integran las funcionalidades para ser validadas antes de pasar a
+  producción. Los Pull Requests hacia `main` nacen de aquí.
+- **`dev`**: Rama de desarrollo. Los desarrolladores crean ramas `feature/*` (ej. `feature/auth-login`) a
+  partir de `dev` y hacen Pull Requests de vuelta a `dev` para integración continua.

@@ -39,14 +39,14 @@ class TestRoleRoutes:
   # GET /
   def test_get_no_token(self):
     response = self.client.get(
-      '/roles/'
+      '/api/roles/'
     )
 
     assert response.status_code == 401
 
   def test_get_all_roles(self):
     response = self.client.get(
-      '/roles/',
+      '/api/roles/',
       headers=self.headers
     )
 
@@ -60,7 +60,7 @@ class TestRoleRoutes:
   # GET /{role_id}
   def test_get_role_by_id(self):
     response = self.client.get(
-      '/roles/1',
+      '/api/roles/1',
       headers=self.headers
     )
 
@@ -74,7 +74,7 @@ class TestRoleRoutes:
   # GET /{role_id} - NOT FOUND
   def test_get_role_by_id_not_found(self):
     response = self.client.get(
-      '/roles/999999',
+      '/api/roles/999999',
       headers=self.headers
     )
 
@@ -88,7 +88,7 @@ class TestRoleRoutes:
   # POST /
   def test_post_role(self):
     response = self.client.post(
-      '/roles/',
+      '/api/roles/',
       json={
         'name': 'Test Role'
       },
@@ -106,7 +106,7 @@ class TestRoleRoutes:
   # PATCH /{role_id}
   def test_patch_role(self):
     create_response = self.client.post(
-      '/roles/',
+      '/api/roles/',
       json={
         'name': 'Role Before Update'
       },
@@ -118,7 +118,7 @@ class TestRoleRoutes:
     role_id = create_response.json()['id_role']
 
     response = self.client.patch(
-      f'/roles/{role_id}',
+      f'/api/roles/{role_id}',
       json={
         'name': 'Updated Role'
       },
@@ -136,7 +136,7 @@ class TestRoleRoutes:
   # PATCH /{role_id} - NOT FOUND
   def test_patch_role_not_found(self):
     response = self.client.patch(
-      '/roles/999999',
+      '/api/roles/999999',
       json={
         'name': 'Updated Role'
       },
@@ -153,7 +153,7 @@ class TestRoleRoutes:
   # DELETE /{role_id}
   def test_delete_role(self):
     create_response = self.client.post(
-      '/roles/',
+      '/api/roles/',
       json={
         'name': 'Role to Delete'
       },
@@ -165,7 +165,7 @@ class TestRoleRoutes:
     role_id = create_response.json()['id_role']
 
     response = self.client.delete(
-      f'/roles/{role_id}',
+      f'/api/roles/{role_id}',
       headers=self.headers
     )
 
@@ -177,7 +177,7 @@ class TestRoleRoutes:
   # DELETE /{role_id} - NOT FOUND
   def test_delete_role_not_found(self):
     response = self.client.delete(
-      '/roles/999999',
+      '/api/roles/999999',
       headers=self.headers
     )
 
