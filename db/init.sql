@@ -66,3 +66,18 @@ CREATE TABLE IF NOT EXISTS "Roles_Modules" (
     FOREIGN KEY (id_role) REFERENCES "Roles" (id_role),
     FOREIGN KEY (id_module) REFERENCES "Modules" (id_module)
 );
+
+-- Sesiones (Stateless JWT + estado minimo del refresh en BD para poder revocar / detectar reuso).
+-- id_role fija el rol de la sesion (Least Privilege): refrescar nunca cambia el rol elegido en el login.
+CREATE TABLE IF NOT EXISTS "RefreshTokens" (
+    id_refresh_token SERIAL NOT NULL PRIMARY KEY,
+    id_user INTEGER NOT NULL,
+    id_role INTEGER NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,  -- sha256 hex del refresh token (nunca se guarda en texto plano)
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT false,
+    fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    FOREIGN KEY (id_user) REFERENCES "Users" (id_user),
+    FOREIGN KEY (id_role) REFERENCES "Roles" (id_role)
+);
