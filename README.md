@@ -36,3 +36,27 @@ El repositorio se rige por el siguiente modelo de ramas:
   producción. Los Pull Requests hacia `main` nacen de aquí.
 - **`dev`**: Rama de desarrollo. Los desarrolladores crean ramas `feature/*` (ej. `feature/auth-login`) a
   partir de `dev` y hacen Pull Requests de vuelta a `dev` para integración continua.
+
+# CI/CD
+
+Al hacer push o abrir un Pull Request hacia `main` corre `.github/workflows/ci-cd.yml`: build + tests con
+cobertura (pytest), SAST (Bandit), auditoría de dependencias (pip-audit + npm audit), build del frontend,
+análisis de calidad con **SonarQube self-hosted** (Community, levantado como contenedor efímero dentro del
+propio job — no SonarCloud, para poder configurar un Quality Gate a medida) y escaneo de vulnerabilidades
+en dependencias con **Trivy**. Si todo pasa y el push fue a `main`, se dispara el despliegue en Render. Cada
+corrida notifica el resultado a un grupo de Telegram (inicio del pipeline y resumen final). Los merges a
+`dev`/`test` disparan una notificación liviana aparte (`.github/workflows/branch-notify.yml`).
+
+Para que el pipeline funcione hace falta configurar estos secrets en
+**Settings → Secrets and variables → Actions**:
+
+| Secret | Para qué |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Token del bot de Telegram (BotFather). Notificaciones obligatorias — el job falla si no se puede notificar. |
+| `TELEGRAM_CHAT_ID` | ID del chat/grupo de Telegram donde se notifica. |
+| `RENDER_DEPLOY_HOOK_URL` | Deploy Hook del servicio en Render (Dashboard → el servicio → Settings → Deploy Hook). Si falta, el despliegue se omite (no rompe el pipeline) pero no despliega nada — hay que configurarlo antes de depender del deploy automático. |
+| `SONAR_CI_ADMIN_PASSWORD` | Opcional. Contraseña que el pipeline le pone al admin de SonarQube dentro del contenedor efímero (no es un secreto de un servicio externo, es autocontenido al propio pipeline). Si no se define, usa un valor por defecto documentado en el script. |
+
+**Importante:** en Render, deshabilitar el auto-deploy nativo de GitHub del servicio (el que dispara con
+cada push al repo) — el despliegue debe depender únicamente de que el pipeline (tests + Quality Gate +
+Bandit + Trivy) haya pasado, no de un webhook directo del repositorio.

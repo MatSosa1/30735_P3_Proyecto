@@ -12,3 +12,12 @@ docs/internal/
 skills/
 skills-lock.json
 CLAUDE.md
+
+# Artefactos locales de correr el pipeline de CI/CD a mano (ver .github/workflows/ci-cd.yml)
+coverage.xml
+.coverage
+trivy-deps.json
+bandit-report.txt
+sonarqube-data/
+sonarqube-extensions/
+sonarqube-logs/
