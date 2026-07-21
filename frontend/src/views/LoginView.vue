@@ -34,12 +34,14 @@ async function onSubmit() {
 <template>
   <main class="flex min-h-dvh items-center justify-center bg-bg px-4">
     <form
-      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-8"
+      class="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)]"
       novalidate
       @submit.prevent="onSubmit"
     >
-      <h1 class="text-xl font-semibold text-ink">Master Gateway</h1>
-      <p class="mt-1 text-sm text-ink-secondary">Ingresá tus credenciales para continuar.</p>
+      <div class="text-center">
+        <h1 class="text-xl font-semibold text-ink">Master Gateway</h1>
+        <p class="mt-1 text-sm text-ink-secondary">Ingresá tus credenciales para continuar.</p>
+      </div>
 
       <div class="mt-6 flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
