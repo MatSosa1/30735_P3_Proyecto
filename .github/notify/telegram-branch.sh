@@ -13,12 +13,57 @@ esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 
 short_sha="${COMMIT_SHA:0:7}"
 
-MSG="$(cat <<EOF
-🔀 <b>Merge exitoso — Master Gateway</b>
-Rama: <b>$(printf '%s' "${BRANCH:-?}" | esc)</b> · <code>${short_sha}</code>
-$(printf '%s' "${COMMIT_MESSAGE:-}" | esc)
+# --- Tests + cobertura ---
+if [ "${TESTS_OUTCOME:-}" = "success" ]; then
+  tests_emoji="✅"
+elif [ "${TESTS_OUTCOME:-}" = "failure" ]; then
+  tests_emoji="❌"
+else
+  tests_emoji="❔"
+fi
+tests_summary="${TESTS_SUMMARY:-sin resumen}"
+coverage_line=""
+if [ -n "${COVERAGE_PCT:-}" ]; then
+  coverage_line=" · Cobertura: ${COVERAGE_PCT}%"
+fi
 
-🔗 <a href="${RUN_URL:-}">Ver commit en GitHub</a>
+# --- Bandit ---
+if [ "${BANDIT_OUTCOME:-}" = "success" ]; then
+  bandit_emoji="✅"; bandit_text="sin hallazgos medium/high"
+elif [ "${BANDIT_OUTCOME:-}" = "failure" ]; then
+  bandit_emoji="❌"; bandit_text="con hallazgos medium/high"
+else
+  bandit_emoji="❔"; bandit_text="no se ejecutó"
+fi
+
+# --- pip-audit ---
+if [ "${PIP_AUDIT_OUTCOME:-}" = "success" ]; then
+  pip_emoji="✅"; pip_text="sin vulnerabilidades conocidas"
+elif [ "${PIP_AUDIT_OUTCOME:-}" = "failure" ]; then
+  pip_emoji="❌"; pip_text="con vulnerabilidades conocidas"
+else
+  pip_emoji="❔"; pip_text="no se ejecutó"
+fi
+
+# --- npm audit ---
+if [ "${NPM_AUDIT_OUTCOME:-}" = "success" ]; then
+  npm_emoji="✅"; npm_text="sin vulnerabilidades HIGH/CRITICAL"
+elif [ "${NPM_AUDIT_OUTCOME:-}" = "failure" ]; then
+  npm_emoji="❌"; npm_text="con vulnerabilidades HIGH/CRITICAL"
+else
+  npm_emoji="❔"; npm_text="no se ejecutó"
+fi
+
+MSG="$(cat <<EOF
+🔀 <b>Merge a $(printf '%s' "${BRANCH:-?}" | esc) — Master Gateway</b>
+<code>${short_sha}</code> · $(printf '%s' "${COMMIT_MESSAGE:-}" | esc)
+
+${tests_emoji} <b>Tests (pytest)</b>: $(printf '%s' "$tests_summary" | esc)${coverage_line}
+${bandit_emoji} <b>Bandit (SAST)</b>: ${bandit_text}
+${pip_emoji} <b>pip-audit</b>: ${pip_text}
+${npm_emoji} <b>npm audit</b>: ${npm_text}
+
+🔗 <a href="${RUN_URL:-}">Ver ejecución en GitHub Actions</a>
 EOF
 )"
 
