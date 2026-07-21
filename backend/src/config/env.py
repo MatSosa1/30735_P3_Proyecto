@@ -17,3 +17,10 @@ REFRESH_TOKEN_EXPIRE_IN_DAYS: int = int(os.getenv('REFRESH_TOKEN_EXPIRE_IN_DAYS'
 
 # Secreto compartido para que microservicios hijos llamen a /api/internals/validate-token
 INTERNAL_SERVICES_SECRET = os.getenv('INTERNAL_SERVICES_SECRET')
+
+# Orígenes permitidos para CORS (frontend). Lista separada por comas.
+CORS_ORIGINS = [
+  origin.strip()
+  for origin in os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+  if origin.strip()
+]
