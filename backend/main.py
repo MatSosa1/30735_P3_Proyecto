@@ -9,6 +9,7 @@ from src.routes.users_routes import router as user_router
 from src.routes.roles_routes import router as role_router
 from src.routes.modules_routes import router as module_router
 from src.routes.internal_routes import router as internal_router
+from src.routes.menu_routes import router as menu_router
 
 
 app = FastAPI()
@@ -21,6 +22,7 @@ app.include_router(user_router, prefix='/api')
 app.include_router(role_router, prefix='/api')
 app.include_router(module_router, prefix='/api')
 app.include_router(internal_router, prefix='/api')
+app.include_router(menu_router, prefix='/api')
 
 @app.get("/")
 def root():
