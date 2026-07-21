@@ -1,9 +1,9 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.controllers.module_controller import ModuleController
 from src.controllers.role_controller import RoleController
-from src.models.models import Base
+from src.models.models import Base, EstadoEnum, Module
 
 
 engine = create_engine(
@@ -143,10 +143,21 @@ class TestModuleController:
 
     assert deleted is True
 
+    # No debe verse por el path público (filtro global estado=ACTIVO)...
     assert ModuleController.get_by_id(
       self.db,
       created.id_module
     ) is None
+
+    # ...pero el registro debe seguir existiendo en BD con estado=INACTIVO (soft delete, no DELETE físico)
+    still_exists = self.db.scalar(
+      select(Module)
+      .where(Module.id_module == created.id_module)
+      .execution_options(include_inactive=True)
+    )
+
+    assert still_exists is not None
+    assert still_exists.estado == EstadoEnum.INACTIVO
 
   def test_update_nonexistent_module(self):
     result = ModuleController.update(

@@ -65,7 +65,7 @@ class ModuleController:
     if module is None:
       return False
 
-    db.delete(module)
+    module.deactivate()
     db.commit()
 
     return True

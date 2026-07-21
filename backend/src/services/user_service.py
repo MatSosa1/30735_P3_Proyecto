@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from src.models.models import Role, User
+from src.models.models import Role, User, UserRole
 
 
 class UserService:
@@ -11,7 +11,9 @@ class UserService:
 
   @staticmethod
   def get_by_id(db: Session, user_id: int) -> User | None:
-    return db.get(User, user_id)
+    # select() (a diferencia de db.get()) siempre respeta el filtro global de estado=ACTIVO,
+    # incluso si el objeto ya está en el identity map de la sesión.
+    return db.scalar(select(User).where(User.id_user == user_id))
 
   @staticmethod
   def get_by_username(db: Session, username: str) -> User | None:
@@ -27,9 +29,13 @@ class UserService:
       return None
 
     roles_select_statement = select(Role).where(Role.id_role.in_(roles_id))
-    roles = list(db.scalars(roles_select_statement).all())
+    valid_role_ids = [role.id_role for role in db.scalars(roles_select_statement).all()]
 
-    user.roles_user = roles
+    db.query(UserRole).filter(UserRole.id_user == user_id).delete()
+    db.flush()
+
+    for role_id in valid_role_ids:
+      db.add(UserRole(id_user=user_id, id_role=role_id))
 
     db.commit()
     db.refresh(user)
