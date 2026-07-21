@@ -88,6 +88,22 @@ if [ -n "${DEPLOY_OUTCOME:-}" ]; then
   deploy_block=$'\n\n'"${deploy_emoji} <b>Despliegue (Render)</b>: ${deploy_text}"
 fi
 
+# --- Despliegue (Vercel) ---
+if [ -n "${VERCEL_DEPLOY_OUTCOME:-}" ]; then
+  if [ "${VERCEL_DEPLOY_OUTCOME}" = "success" ]; then
+    vercel_emoji="✅"; vercel_text="OK"
+  elif [ "${VERCEL_DEPLOY_OUTCOME}" = "skipped" ]; then
+    vercel_emoji="⏭️"; vercel_text="omitido (no aplica a esta rama/evento, o falta configurar el secret de Vercel)"
+  else
+    vercel_emoji="❌"; vercel_text="FALLÓ"
+  fi
+  if [ -z "$deploy_block" ]; then
+    deploy_block=$'\n\n'"${vercel_emoji} <b>Despliegue (Vercel)</b>: ${vercel_text}"
+  else
+    deploy_block="${deploy_block}"$'\n'"${vercel_emoji} <b>Despliegue (Vercel)</b>: ${vercel_text}"
+  fi
+fi
+
 if [ "${EVENT_NAME:-}" = "pull_request" ] && [ -n "${PR_NUMBER:-}" ]; then
   ctx="PR #${PR_NUMBER} → ${BRANCH:-?}"
 else
