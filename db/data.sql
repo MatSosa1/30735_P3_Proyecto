@@ -26,7 +26,7 @@ INSERT INTO "Modules" (id_module, name_module, url_module, parent_id_module) VAL
 SELECT setval(pg_get_serial_sequence('"Modules"', 'id_module'), (SELECT MAX(id_module) FROM "Modules"));
 
 -- Users - Roles
-INSERT INTO "Users_Roles" VALUES
+INSERT INTO "Users_Roles" (id_user, id_role) VALUES
 (1, 1),
 (1, 2),
 (2, 1),
@@ -35,7 +35,7 @@ INSERT INTO "Users_Roles" VALUES
 (2, 4);
 
 -- Roles - Modules
-INSERT INTO "Roles_Modules" VALUES
+INSERT INTO "Roles_Modules" (id_role, id_module) VALUES
 -- Vendedor
 (1, 4),
 (1, 5),
