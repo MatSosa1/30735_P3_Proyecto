@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, UTC
 
 import jwt
+from jwt import InvalidTokenError
 
 from src.config.env import JWT_SECRET, JWT_EXPIRE_IN_MINUTES, TEMP_TOKEN_EXPIRE_IN_MINUTES
 
@@ -24,13 +25,21 @@ class JwtService:
       algorithm=JWT_ALGORITHM
     )
 
+  # Un TempToken (sin 'role', vida corta) nunca debe aceptarse donde se espera un JWT de sesion:
+  # sin este chequeo, el 'role' ausente provoca un KeyError sin manejar mas adelante (500) en vez
+  # de un 401/403 limpio.
   @staticmethod
   def verify(token: str):
-    return jwt.decode(
+    payload = jwt.decode(
       token,
       JWT_SECRET,
       algorithms=[JWT_ALGORITHM]
     )
+
+    if payload.get('type') == TEMP_TOKEN_TYPE:
+      raise InvalidTokenError('TempToken no es válido como JWT de sesión')
+
+    return payload
 
   # TempToken: emitido tras validar credenciales (paso 1 del login), antes de elegir rol.
   # Vida muy corta y sin 'role' (Least Privilege: no habilita nada por si solo).
