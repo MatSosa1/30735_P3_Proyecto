@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.models.models import Base, Role
+from src.models.models import Base, EstadoEnum, Role, User
 from src.controllers.user_controller import UserController
 
 
@@ -110,10 +110,21 @@ class TestUserController:
 
     assert deleted is True
 
+    # No debe verse por el path público (filtro global estado=ACTIVO)...
     assert UserController.get_by_id(
       self.db,
       created.id_user
     ) is None
+
+    # ...pero el registro debe seguir existiendo en BD con estado=INACTIVO (soft delete, no DELETE físico)
+    still_exists = self.db.scalar(
+      select(User)
+      .where(User.id_user == created.id_user)
+      .execution_options(include_inactive=True)
+    )
+
+    assert still_exists is not None
+    assert still_exists.estado == EstadoEnum.INACTIVO
 
   def test_set_roles(self):
     role1 = Role(name_role="Admin")
