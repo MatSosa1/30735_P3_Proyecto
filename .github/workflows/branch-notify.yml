@@ -1,0 +1,129 @@
+name: Notificar merges a dev/test
+
+on:
+    push:
+        branches: [dev, test]
+
+jobs:
+    notify:
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: password
+                    POSTGRES_DB: mastergateway
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd="pg_isready -U postgres"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=10
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Cargar schema y seed en Postgres
+              env:
+                  PGPASSWORD: password
+              run: |
+                  psql -h localhost -U postgres -d mastergateway -f db/init.sql
+                  psql -h localhost -U postgres -d mastergateway -f db/data.sql
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+
+            - name: Instalar dependencias del backend
+              working-directory: backend
+              run: pip install -r requirements.txt
+
+            - name: Tests + cobertura (pytest)
+              id: tests
+              working-directory: backend
+              env:
+                  DB_USERNAME: postgres
+                  DB_PASSWORD: password
+                  DB_HOSTNAME: localhost
+                  DB_NAME: mastergateway
+                  DB_PORT: 5432
+                  JWT_SECRET: ci-test-secret-key-not-for-prod-use
+                  INTERNAL_SERVICES_SECRET: internalservicessecret
+              run: |
+                  pip install pytest-cov
+                  set +e
+                  pytest --cov=src --cov-report=term -q > pytest-output.txt 2>&1
+                  test_exit=$?
+                  set -e
+                  cat pytest-output.txt
+                  summary="$(grep -E '^[0-9]+ (passed|failed)' pytest-output.txt | tail -1)"
+                  [ -z "$summary" ] && summary="sin resumen (ver log del step)"
+                  coverage_pct="$(grep -E '^TOTAL' pytest-output.txt | awk '{print $NF}' | tr -d '%')"
+                  echo "summary=${summary}" >> "$GITHUB_OUTPUT"
+                  echo "coverage=${coverage_pct}" >> "$GITHUB_OUTPUT"
+                  exit $test_exit
+
+            - name: SAST (Bandit) - solo severidad media/alta
+              id: bandit
+              if: always()
+              working-directory: backend
+              continue-on-error: true
+              run: |
+                  pip install bandit
+                  bandit -r src -x src/tests -ll -f txt
+
+            - name: Auditoría de dependencias Python (pip-audit)
+              id: pip-audit
+              if: always()
+              working-directory: backend
+              continue-on-error: true
+              run: |
+                  pip install pip-audit
+                  pip-audit -r requirements.txt
+
+            - uses: actions/setup-node@v4
+              if: always()
+              with:
+                  node-version: 22
+
+            - name: Instalar dependencias del frontend
+              id: npm-ci
+              if: always()
+              working-directory: frontend
+              continue-on-error: true
+              run: npm ci
+
+            - name: Auditoría de dependencias del frontend (npm audit)
+              id: npm-audit
+              if: always()
+              working-directory: frontend
+              continue-on-error: true
+              run: npm audit --audit-level=high
+
+            - name: Notificar a Telegram
+              if: always()
+              run: .github/notify/telegram-branch.sh
+              env:
+                  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+                  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  BRANCH: ${{ github.ref_name }}
+                  COMMIT_SHA: ${{ github.sha }}
+                  COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+                  TESTS_OUTCOME: ${{ steps.tests.outcome }}
+                  TESTS_SUMMARY: ${{ steps.tests.outputs.summary }}
+                  COVERAGE_PCT: ${{ steps.tests.outputs.coverage }}
+                  BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
+                  PIP_AUDIT_OUTCOME: ${{ steps.pip-audit.outcome }}
+                  NPM_AUDIT_OUTCOME: ${{ steps.npm-audit.outcome }}
+
+            - name: Fail job si Bandit encontró hallazgos medium/high
+              if: always()
+              run: |
+                  if [ "${{ steps.bandit.outcome }}" = "failure" ]; then
+                    echo "::error::Bandit encontró hallazgos de severidad media/alta. Revisa el log del step."
+                    exit 1
+                  fi
