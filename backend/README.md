@@ -184,19 +184,29 @@ para el microservicio consumidor). Si falta o no coincide el secreto compartido:
 
 ### Modules
 
+Todas las rutas de este router están gateadas por `require_module(4)` (requieren un JWT de sesión cuyo
+rol tenga acceso al módulo id 4). Ninguna ruta define `response_model`: se serializa el ORM `Module` tal
+cual, incluyendo los campos de auditoría (`estado`, `fecha_creacion`, `fecha_actualizacion`, `creado_por`,
+`actualizado_por`) — a diferencia de `Users`, que sí filtra su respuesta con `UserOut`.
+
 #### `GET /api/modules/`
 
-Obtiene la lista de todos los módulos registrados.
+Obtiene la lista de todos los módulos registrados (activos, por el filtro global de soft delete).
 
 ##### Respuesta exitosa
 
 ```json
 [
   {
-    "id": 1,
-    "name": "Usuarios",
-    "url": "/users",
-    "parent_id": null
+    "id_module": 1,
+    "name_module": "Menu",
+    "url_module": null,
+    "parent_id_module": null,
+    "estado": "ACTIVO",
+    "fecha_creacion": "2026-07-21T03:26:46.095122+00:00",
+    "fecha_actualizacion": "2026-07-21T03:26:46.095122+00:00",
+    "creado_por": null,
+    "actualizado_por": null
   }
 ]
 ```
@@ -215,10 +225,15 @@ Obtiene la información de un módulo específico mediante su identificador.
 
 ```json
 {
-  "id": 1,
-  "name": "Usuarios",
-  "url": "/users",
-  "parent_id": null
+  "id_module": 1,
+  "name_module": "Menu",
+  "url_module": null,
+  "parent_id_module": null,
+  "estado": "ACTIVO",
+  "fecha_creacion": "2026-07-21T03:26:46.095122+00:00",
+  "fecha_actualizacion": "2026-07-21T03:26:46.095122+00:00",
+  "creado_por": null,
+  "actualizado_por": null
 }
 ```
 
@@ -246,14 +261,19 @@ Crea un nuevo módulo.
 }
 ```
 
-##### Respuesta exitosa
+##### Respuesta exitosa (`201`)
 
 ```json
 {
-  "id": 1,
-  "name": "Usuarios",
-  "url": "/users",
-  "parent_id": null
+  "id_module": 10,
+  "name_module": "Usuarios",
+  "url_module": "/users",
+  "parent_id_module": null,
+  "estado": "ACTIVO",
+  "fecha_creacion": "2026-07-21T04:30:15.203032+00:00",
+  "fecha_actualizacion": "2026-07-21T04:30:15.203032+00:00",
+  "creado_por": null,
+  "actualizado_por": null
 }
 ```
 
@@ -281,14 +301,7 @@ Los campos son opcionales, por lo que se pueden actualizar únicamente los valor
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Gestión de Usuarios",
-  "url": "/users",
-  "parent_id": 2
-}
-```
+Mismo formato que `POST /api/modules/`, con los campos actualizados.
 
 ##### Respuesta de error
 
@@ -311,7 +324,7 @@ cadena de ancestros): `400`.
 
 #### `PUT /api/modules/{module_id}/roles`
 
-Asigna una lista de roles a un módulo.
+Asigna una lista de roles a un módulo (reemplaza por completo las asignaciones previas de ese módulo).
 
 ##### Parámetros de ruta
 
@@ -329,14 +342,7 @@ Asigna una lista de roles a un módulo.
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Usuarios",
-  "url": "/users",
-  "parent_id": null
-}
-```
+Mismo formato que `GET /api/modules/{module_id}` (el módulo, no la lista de asignaciones).
 
 ##### Respuesta de error
 
@@ -350,7 +356,8 @@ Si el módulo no existe:
 
 #### `DELETE /api/modules/{module_id}`
 
-Elimina un módulo mediante su identificador.
+Elimina un módulo mediante su identificador (soft delete: se marca `estado=INACTIVO`, no es DELETE
+físico).
 
 ##### Parámetros de ruta
 
@@ -360,11 +367,7 @@ Elimina un módulo mediante su identificador.
 
 ##### Respuesta exitosa
 
-```json
-{
-  "message": "Module deleted successfully"
-}
-```
+`204`, sin contenido.
 
 ##### Respuesta de error
 
@@ -379,17 +382,25 @@ Si el módulo no existe:
 
 ### Roles
 
+Todas las rutas de este router están gateadas por `require_module(4)`. Al igual que `Modules`, no define
+`response_model`: se serializa el ORM `Role` tal cual, incluyendo los campos de auditoría.
+
 #### `GET /api/roles/`
 
-Obtiene la lista de todos los roles registrados.
+Obtiene la lista de todos los roles registrados (activos, por el filtro global de soft delete).
 
 ##### Respuesta exitosa
 
 ```json
 [
   {
-    "id": 1,
-    "name": "Administrador"
+    "id_role": 1,
+    "name_role": "Vendedor",
+    "estado": "ACTIVO",
+    "fecha_creacion": "2026-07-21T03:26:46.086810+00:00",
+    "fecha_actualizacion": "2026-07-21T03:26:46.086810+00:00",
+    "creado_por": null,
+    "actualizado_por": null
   }
 ]
 ```
@@ -406,12 +417,7 @@ Obtiene la información de un rol específico mediante su identificador.
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Administrador"
-}
-```
+Mismo formato que un elemento de `GET /api/roles/`.
 
 ##### Respuesta de error
 
@@ -435,14 +441,9 @@ Crea un nuevo rol.
 }
 ```
 
-##### Respuesta exitosa
+##### Respuesta exitosa (`201`)
 
-```json
-{
-  "id": 1,
-  "name": "Administrador"
-}
-```
+Mismo formato que un elemento de `GET /api/roles/`.
 
 #### `PATCH /api/roles/{role_id}`
 
@@ -466,12 +467,7 @@ El campo `name` es opcional, por lo que se puede actualizar únicamente el valor
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Administrador del sistema"
-}
-```
+Mismo formato que un elemento de `GET /api/roles/`, con el nombre actualizado.
 
 ##### Respuesta de error
 
@@ -576,22 +572,27 @@ Igual formato que `POST /api/roles/{role_id}/modules`.
 
 ### Users
 
+Ruta gateada por `require_module(4)`. A diferencia de `Modules`/`Roles`, sí define `response_model=UserOut`
+(o `list[UserOut]`), que deliberadamente excluye `password_user` y los campos `creado_por`/`actualizado_por`.
+
 #### `GET /api/users/`
 
-Obtiene la lista de todos los usuarios registrados.
+Obtiene la lista de todos los usuarios registrados (activos, por el filtro global de soft delete).
 
 ##### Respuesta exitosa
 
 ```json
 [
   {
-    "id": 1,
-    "name": "Mateo",
-    "surname": "Sosa",
-    "username": "msosa"
+    "id_user": 1,
+    "name_user": "Mateo",
+    "surname_user": "Sosa",
+    "username_user": "msosa",
+    "estado": "ACTIVO",
+    "fecha_creacion": "2026-07-21T03:26:46.080139Z",
+    "fecha_actualizacion": "2026-07-21T03:26:46.080139Z"
   }
 ]
-
 ```
 
 #### `GET /api/users/{user_id}`
@@ -606,14 +607,7 @@ Obtiene la información de un usuario específico mediante su identificador.
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Mateo",
-  "surname": "Sosa",
-  "username": "msosa"
-}
-```
+Mismo formato que un elemento de `GET /api/users/`.
 
 ##### Respuesta de error
 
@@ -629,7 +623,7 @@ Si el usuario no existe:
 
 Crea un nuevo usuario. La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un
 número; si no cumple, responde `422`. Las respuestas de `/users` (`GET`/`POST`/`PATCH`) nunca incluyen el
-hash de la contraseña (`password_user`).
+hash de la contraseña (`password_user`), gracias al `response_model=UserOut`.
 
 ##### Request Body
 
@@ -642,16 +636,9 @@ hash de la contraseña (`password_user`).
 }
 ```
 
-##### Respuesta exitosa
+##### Respuesta exitosa (`201`)
 
-```json
-{
-  "id": 1,
-  "name": "Mateo",
-  "surname": "Sosa",
-  "username": "msosa"
-}
-```
+Mismo formato que un elemento de `GET /api/users/`.
 
 #### `PATCH /api/users/{user_id}`
 
@@ -678,14 +665,7 @@ Los campos son opcionales, por lo que se pueden actualizar únicamente los valor
 
 ##### Respuesta exitosa
 
-```json
-{
-  "id": 1,
-  "name": "Mateo",
-  "surname": "Sosa",
-  "username": "mateo.sosa"
-}
-```
+Mismo formato que un elemento de `GET /api/users/`, con los campos actualizados.
 
 ##### Respuesta de error
 
