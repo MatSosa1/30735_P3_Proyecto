@@ -59,9 +59,16 @@ Esto abrirá el backend en el puerto 8000.
 
 ### Auth
 
-#### `POST /api/auth/set_role`
+El login es un flujo de dos pasos (Workspace Selector): primero se validan credenciales y se elige el rol
+después, en una segunda llamada. El JWT de sesión final solo contiene el rol elegido (Least Privilege) —
+nunca todos los roles del usuario. `POST /api/auth/login` reemplaza al antiguo `POST /api/auth/set_role`
+(eliminado); `POST /api/auth/select-role` reemplaza al antiguo `POST /api/auth/login` de un solo paso.
 
-Obtiene los roles asociados a un usuario después de validar sus credenciales.
+#### `POST /api/auth/login`
+
+Valida credenciales (usuario + contraseña). Si son correctas, devuelve un `TempToken` de vida muy corta
+(no habilita ningún acceso por sí solo) y la lista de roles del usuario. Sujeto a rate limiting (5 por
+minuto por IP). El mensaje de error es genérico: no distingue si falló el usuario o la contraseña.
 
 ##### Request Body
 
@@ -70,67 +77,109 @@ Obtiene los roles asociados a un usuario después de validar sus credenciales.
   "username": "usuario",
   "password": "contraseña"
 }
-
 ```
 
 ##### Respuesta exitosa
 
 ```json
 {
+  "temp_token": "temp_token_jwt",
   "roles": [
-    {
-      "id": 1,
-      "name": "Administrador"
-    }
+    { "id_role": 1, "name_role": "Administrador" }
   ]
 }
-
 ```
 
 ##### Respuesta de error
 
-Si el usuario no existe o no tiene roles asignados:
+`401` con `{ "detail": "Credenciales inválidas" }`.
 
-```json
-{
-  "error": "Usuario no existe o no tiene roles"
-}
+#### `POST /api/auth/select-role`
 
-```
-
-#### `POST /api/auth/login`
-
-Autentica al usuario utilizando sus credenciales y el rol seleccionado. Si la autenticación es exitosa, genera un token de acceso.
+Recibe el `TempToken` del paso anterior y el `role_id` elegido (debe pertenecer al usuario del `TempToken`).
+Devuelve el JWT de sesión definitivo (corta duración) y un refresh token (de mayor duración, para renovar
+sin volver a pedir contraseña).
 
 ##### Request Body
 
 ```json
 {
-  "username": "usuario",
-  "password": "contraseña",
-  "actual_role_id": 1
+  "temp_token": "temp_token_jwt",
+  "role_id": 1
 }
-
 ```
 
 ##### Respuesta exitosa
 
 ```json
 {
-  "token": "token_jwt_generado"
+  "token": "jwt_de_sesion",
+  "refresh_token": "refresh_token_opaco"
 }
-
 ```
 
 ##### Respuesta de error
 
-Si las credenciales no son válidas:
+`401` con `{ "detail": "Selección de rol inválida" }` (TempToken inválido/expirado o rol no asignado al usuario).
+
+#### `POST /api/auth/refresh-token`
+
+Genera un nuevo JWT de sesión (mismo rol) a partir de un refresh token válido. Cada uso rota el refresh
+token (el anterior queda revocado). Si un refresh token ya revocado se reutiliza, se asume compromiso de
+sesión y se revocan **todos** los refresh tokens del usuario.
+
+##### Request Body
+
+```json
+{ "refresh_token": "refresh_token_opaco" }
+```
+
+##### Respuesta exitosa
 
 ```json
 {
-  "error": "Credenciales inválidas"
+  "token": "jwt_de_sesion_nuevo",
+  "refresh_token": "refresh_token_nuevo"
 }
 ```
+
+##### Respuesta de error
+
+`401` con `{ "detail": "Refresh token inválido" }`.
+
+#### `POST /api/auth/logout`
+
+Requiere `Authorization: Bearer <jwt>`. Revoca todos los refresh tokens del usuario autenticado, cortando
+la sesión de inmediato en caso de compromiso.
+
+##### Respuesta exitosa
+
+```json
+{ "message": "Sesión cerrada" }
+```
+
+### Internals
+
+#### `POST /api/internals/validate-token`
+
+Endpoint privado para que otros microservicios (ej. futuro módulo de Ventas) validen un JWT emitido por
+este Master, bajo el modelo Zero Trust. Requiere el header `X-Internal-Secret` con el secreto compartido
+configurado en `INTERNAL_SERVICES_SECRET`. No expone datos sensibles del usuario.
+
+##### Request Body
+
+```json
+{ "token": "jwt_a_validar" }
+```
+
+##### Respuesta exitosa
+
+```json
+{ "valid": true, "user_id": 1, "role_id": 1 }
+```
+
+Si el token es inválido: `{ "valid": false }` (siempre `200`, ya que "inválido" es una respuesta legítima
+para el microservicio consumidor). Si falta o no coincide el secreto compartido: `403`.
 
 
 ### Modules
@@ -503,7 +552,9 @@ Si el usuario no existe:
 
 #### `POST /api/users/`
 
-Crea un nuevo usuario.
+Crea un nuevo usuario. La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un
+número; si no cumple, responde `422`. Las respuestas de `/users` (`GET`/`POST`/`PATCH`) nunca incluyen el
+hash de la contraseña (`password_user`).
 
 ##### Request Body
 
