@@ -1,266 +1,277 @@
 name: CI/CD - Master Gateway
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  pipeline:
-    runs-on: ubuntu-latest
+    pipeline:
+        runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: mastergateway
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: password
+                    POSTGRES_DB: mastergateway
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd="pg_isready -U postgres"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=10
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-      - name: Notificar inicio del pipeline a Telegram
-        if: always()
-        run: .github/notify/telegram-start.sh
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVENT_NAME: ${{ github.event_name }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_SHA: ${{ github.sha }}
+            - name: Notificar inicio del pipeline a Telegram
+              if: always()
+              run: .github/notify/telegram-start.sh
+              env:
+                  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+                  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  BRANCH: ${{ github.head_ref || github.ref_name }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  COMMIT_SHA: ${{ github.sha }}
 
-      - name: Cargar schema y seed en Postgres
-        env:
-          PGPASSWORD: password
-        run: |
-          psql -h localhost -U postgres -d mastergateway -f db/init.sql
-          psql -h localhost -U postgres -d mastergateway -f db/data.sql
+            - name: Cargar schema y seed en Postgres
+              env:
+                  PGPASSWORD: password
+              run: |
+                  psql -h localhost -U postgres -d mastergateway -f db/init.sql
+                  psql -h localhost -U postgres -d mastergateway -f db/data.sql
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
 
-      - name: Instalar dependencias del backend
-        working-directory: backend
-        run: pip install -r requirements.txt
+            - name: Instalar dependencias del backend
+              working-directory: backend
+              run: pip install -r requirements.txt
 
-      - name: Tests + cobertura (pytest)
-        working-directory: backend
-        env:
-          DB_USERNAME: postgres
-          DB_PASSWORD: password
-          DB_HOSTNAME: localhost
-          DB_NAME: mastergateway
-          DB_PORT: 5432
-          JWT_SECRET: ci-test-secret-key-not-for-prod-use
-          INTERNAL_SERVICES_SECRET: internalservicessecret
-        run: |
-          pip install pytest-cov
-          pytest --cov=src --cov-report=xml -q
+            - name: Tests + cobertura (pytest)
+              working-directory: backend
+              env:
+                  DB_USERNAME: postgres
+                  DB_PASSWORD: password
+                  DB_HOSTNAME: localhost
+                  DB_NAME: mastergateway
+                  DB_PORT: 5432
+                  JWT_SECRET: ci-test-secret-key-not-for-prod-use
+                  INTERNAL_SERVICES_SECRET: internalservicessecret
+              run: |
+                  pip install pytest-cov
+                  pytest --cov=src --cov-report=xml -q
 
-      - name: SAST (Bandit) - solo severidad media/alta
-        id: bandit
-        working-directory: backend
-        continue-on-error: true
-        run: |
-          pip install bandit
-          bandit -r src -x src/tests -ll -f txt
+            - name: SAST (Bandit) - solo severidad media/alta
+              id: bandit
+              working-directory: backend
+              continue-on-error: true
+              run: |
+                  pip install bandit
+                  bandit -r src -x src/tests -ll -f txt
 
-      - name: Auditoría de dependencias Python (pip-audit)
-        working-directory: backend
-        continue-on-error: true
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt
+            - name: Auditoría de dependencias Python (pip-audit)
+              working-directory: backend
+              continue-on-error: true
+              run: |
+                  pip install pip-audit
+                  pip-audit -r requirements.txt
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
 
-      - name: Instalar dependencias del frontend
-        working-directory: frontend
-        run: npm ci
+            - name: Instalar dependencias del frontend
+              working-directory: frontend
+              run: npm ci
 
-      - name: Build del frontend
-        working-directory: frontend
-        run: npm run build
+            - name: Build del frontend
+              working-directory: frontend
+              run: npm run build
 
-      - name: Auditoría de dependencias del frontend (npm audit)
-        working-directory: frontend
-        continue-on-error: true
-        run: npm audit --audit-level=high
+            - name: Auditoría de dependencias del frontend (npm audit)
+              working-directory: frontend
+              continue-on-error: true
+              run: npm audit --audit-level=high
 
-      - name: Restaurar último snapshot de SonarQube
-        uses: actions/cache/restore@v4
-        with:
-          path: sonarqube-data
-          key: sonarqube-snapshot-none
-          restore-keys: |
-            sonarqube-snapshot-
+            - name: Restaurar último snapshot de SonarQube
+              uses: actions/cache/restore@v4
+              with:
+                  path: sonarqube-data
+                  key: sonarqube-snapshot-none
+                  restore-keys: |
+                      sonarqube-snapshot-
 
-      - name: Levantar SonarQube (self-hosted, community)
-        run: |
-          mkdir -p sonarqube-data sonarqube-extensions sonarqube-logs
-          chmod -R 777 sonarqube-data sonarqube-extensions sonarqube-logs
-          docker run -d --name sonarqube \
-            -p 9000:9000 \
-            -v "${PWD}/sonarqube-data:/opt/sonarqube/data" \
-            -v "${PWD}/sonarqube-extensions:/opt/sonarqube/extensions" \
-            -v "${PWD}/sonarqube-logs:/opt/sonarqube/logs" \
-            sonarqube:community
+            - name: Levantar SonarQube (self-hosted, community)
+              run: |
+                  mkdir -p sonarqube-data sonarqube-extensions sonarqube-logs
+                  chmod -R 777 sonarqube-data sonarqube-extensions sonarqube-logs
+                  docker run -d --name sonarqube \
+                    -p 9000:9000 \
+                    -v "${PWD}/sonarqube-data:/opt/sonarqube/data" \
+                    -v "${PWD}/sonarqube-extensions:/opt/sonarqube/extensions" \
+                    -v "${PWD}/sonarqube-logs:/opt/sonarqube/logs" \
+                    sonarqube:community
 
-      - name: Esperar a que SonarQube esté listo
-        run: .github/sonarqube/wait-for-sonarqube.sh
+            - name: Esperar a que SonarQube esté listo
+              run: .github/sonarqube/wait-for-sonarqube.sh
 
-      - name: Configurar token y Quality Gate
-        id: sonar-setup
-        run: .github/sonarqube/setup-quality-gate.sh
+            - name: Configurar token y Quality Gate
+              id: sonar-setup
+              run: .github/sonarqube/setup-quality-gate.sh
 
-      - name: SonarQube Scan
-        id: sonar-scan
-        uses: sonarsource/sonarqube-scan-action@v4
-        continue-on-error: true
-        env:
-          SONAR_HOST_URL: http://localhost:9000
-          SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
+            - name: SonarQube Scan
+              id: sonar-scan
+              uses: sonarsource/sonarqube-scan-action@v4
+              continue-on-error: true
+              env:
+                  SONAR_HOST_URL: http://localhost:9000
+                  SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
 
-      - name: Publicar resumen de SonarQube
-        if: always()
-        continue-on-error: true
-        run: .github/sonarqube/publish-summary.sh
-        env:
-          SONAR_HOST_URL: http://localhost:9000
-          SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
+            - name: Publicar resumen de SonarQube
+              if: always()
+              continue-on-error: true
+              run: .github/sonarqube/publish-summary.sh
+              env:
+                  SONAR_HOST_URL: http://localhost:9000
+                  SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
 
-      - name: Trivy - escaneo de vulnerabilidades en dependencias
-        if: always()
-        continue-on-error: true
-        run: |
-          docker run --rm \
-            -v "${PWD}:/repo" \
-            -w /repo \
-            aquasec/trivy:0.65.0 fs \
-              --scanners vuln \
-              --severity HIGH,CRITICAL \
-              --format json \
-              --output trivy-deps.json \
-              --exit-code 0 \
-              --skip-dirs '**/node_modules' \
-              --skip-dirs '**/dist' \
-              --skip-dirs '**/venv' \
-              --skip-dirs '**/.git' \
-              .
+            - name: Trivy - escaneo de vulnerabilidades en dependencias
+              if: always()
+              continue-on-error: true
+              run: |
+                  docker run --rm \
+                    -v "${PWD}:/repo" \
+                    -w /repo \
+                    aquasec/trivy:0.65.0 fs \
+                      --scanners vuln \
+                      --severity HIGH,CRITICAL \
+                      --format json \
+                      --output trivy-deps.json \
+                      --exit-code 0 \
+                      --skip-dirs '**/node_modules' \
+                      --skip-dirs '**/dist' \
+                      --skip-dirs '**/venv' \
+                      --skip-dirs '**/.git' \
+                      .
 
-      - name: Publicar reporte de Trivy en el resumen
-        if: always()
-        run: |
-          {
-            echo "## Trivy — vulnerabilidades en dependencias (HIGH/CRITICAL)"
-            echo
-            count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-deps.json 2>/dev/null || echo 0)"
-            if [ "${count:-0}" -gt 0 ]; then
-              echo "| Severidad | Paquete | Instalada | Corrige en | Vulnerabilidad |"
-              echo "|---|---|---|---|---|"
-              jq -r '.Results[]? | .Vulnerabilities[]?
-                | (if (.FixedVersion // "") == "" then "-" else .FixedVersion end) as $fix
-                | "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \($fix) | \(.VulnerabilityID) |"' \
-                trivy-deps.json
-            else
-              echo "_Sin vulnerabilidades HIGH/CRITICAL detectadas en las dependencias._"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+            - name: Publicar reporte de Trivy en el resumen
+              if: always()
+              run: |
+                  {
+                    echo "## Trivy — vulnerabilidades en dependencias (HIGH/CRITICAL)"
+                    echo
+                    count="$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-deps.json 2>/dev/null || echo 0)"
+                    if [ "${count:-0}" -gt 0 ]; then
+                      echo "| Severidad | Paquete | Instalada | Corrige en | Vulnerabilidad |"
+                      echo "|---|---|---|---|---|"
+                      jq -r '.Results[]? | .Vulnerabilities[]?
+                        | (if (.FixedVersion // "") == "" then "-" else .FixedVersion end) as $fix
+                        | "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \($fix) | \(.VulnerabilityID) |"' \
+                        trivy-deps.json
+                    else
+                      echo "_Sin vulnerabilidades HIGH/CRITICAL detectadas en las dependencias._"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Deploy a Render (solo push a main, gateado por los checks previos)
-        id: deploy
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        continue-on-error: true
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
-            echo "::warning::Falta el secret RENDER_DEPLOY_HOOK_URL; se omite el despliegue."
-            echo "outcome=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${RENDER_DEPLOY_HOOK_URL}")"
-          if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
-            echo "outcome=success" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::Render devolvió HTTP ${status} al disparar el deploy hook."
-            echo "outcome=failure" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
+            - name: Deploy a Render (solo push a main, gateado por los checks previos)
+              id: deploy
+              if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              continue-on-error: true
+              env:
+                  RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+              run: |
+                  if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+                    echo "::warning::Falta el secret RENDER_DEPLOY_HOOK_URL; se omite el despliegue."
+                    echo "outcome=skipped" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${RENDER_DEPLOY_HOOK_URL}")"
+                  if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
+                    echo "outcome=success" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "::error::Render devolvió HTTP ${status} al disparar el deploy hook."
+                    echo "outcome=failure" >> "$GITHUB_OUTPUT"
+                    exit 1
+                  fi
 
-      - name: Notificar resultados a Telegram (obligatorio)
-        if: always()
-        run: .github/notify/telegram.sh
-        env:
-          SONAR_HOST_URL: http://localhost:9000
-          SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
-          BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
-          DEPLOY_OUTCOME: ${{ steps.deploy.outputs.outcome || steps.deploy.conclusion }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVENT_NAME: ${{ github.event_name }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_SHA: ${{ github.sha }}
+            - name: Deploy a Vercel (Frontend)
+              if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              env:
+                  VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+              run: |
+                  if [ -z "${VERCEL_DEPLOY_HOOK_URL:-}" ]; then
+                    echo "::warning::Falta el secret VERCEL_DEPLOY_HOOK_URL; se omite el despliegue."
+                    exit 0
+                  fi
+                  curl -s -X POST "${VERCEL_DEPLOY_HOOK_URL}"
 
-      - name: Volcar logs de SonarQube si algo falló
-        if: failure()
-        run: docker logs sonarqube || true
+            - name: Notificar resultados a Telegram (obligatorio)
+              if: always()
+              run: .github/notify/telegram.sh
+              env:
+                  SONAR_HOST_URL: http://localhost:9000
+                  SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
+                  BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
+                  DEPLOY_OUTCOME: ${{ steps.deploy.outputs.outcome || steps.deploy.conclusion }}
+                  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+                  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  BRANCH: ${{ github.head_ref || github.ref_name }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  COMMIT_SHA: ${{ github.sha }}
 
-      - name: Detener SonarQube
-        if: always()
-        run: docker stop sonarqube || true
+            - name: Volcar logs de SonarQube si algo falló
+              if: failure()
+              run: docker logs sonarqube || true
 
-      - name: Arreglar permisos del snapshot para cachearlo
-        if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: sudo chown -R "$(id -u):$(id -g)" sonarqube-data
+            - name: Detener SonarQube
+              if: always()
+              run: docker stop sonarqube || true
 
-      - name: Guardar snapshot de SonarQube como nuevo baseline
-        if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/cache/save@v4
-        with:
-          path: sonarqube-data
-          key: sonarqube-snapshot-${{ github.run_id }}
+            - name: Arreglar permisos del snapshot para cachearlo
+              if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+              run: sudo chown -R "$(id -u):$(id -g)" sonarqube-data
 
-      - name: Fail job si el Quality Gate, Bandit o Trivy fallaron
-        if: always()
-        run: |
-          fail=0
+            - name: Guardar snapshot de SonarQube como nuevo baseline
+              if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+              uses: actions/cache/save@v4
+              with:
+                  path: sonarqube-data
+                  key: sonarqube-snapshot-${{ github.run_id }}
 
-          if [ "${{ steps.sonar-scan.outcome }}" = "failure" ]; then
-            echo "::error::Quality Gate failed. Revisa el resumen del job para más detalles."
-            fail=1
-          fi
+            - name: Fail job si el Quality Gate, Bandit o Trivy fallaron
+              if: always()
+              run: |
+                  fail=0
 
-          if [ "${{ steps.bandit.outcome }}" = "failure" ]; then
-            echo "::error::Bandit encontró hallazgos de severidad media/alta. Revisa el log del step."
-            fail=1
-          fi
+                  if [ "${{ steps.sonar-scan.outcome }}" = "failure" ]; then
+                    echo "::error::Quality Gate failed. Revisa el resumen del job para más detalles."
+                    fail=1
+                  fi
 
-          crit=0
-          if [ -f trivy-deps.json ]; then
-            crit="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-deps.json 2>/dev/null || echo 0)"
-          fi
-          if [ "${crit:-0}" -gt 0 ]; then
-            echo "::error::Trivy encontró ${crit} vulnerabilidad(es) CRITICAL en dependencias. Revisa el resumen del job."
-            fail=1
-          fi
+                  if [ "${{ steps.bandit.outcome }}" = "failure" ]; then
+                    echo "::error::Bandit encontró hallazgos de severidad media/alta. Revisa el log del step."
+                    fail=1
+                  fi
 
-          exit "$fail"
+                  crit=0
+                  if [ -f trivy-deps.json ]; then
+                    crit="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-deps.json 2>/dev/null || echo 0)"
+                  fi
+                  if [ "${crit:-0}" -gt 0 ]; then
+                    echo "::error::Trivy encontró ${crit} vulnerabilidad(es) CRITICAL en dependencias. Revisa el resumen del job."
+                    fail=1
+                  fi
+
+                  exit "$fail"
