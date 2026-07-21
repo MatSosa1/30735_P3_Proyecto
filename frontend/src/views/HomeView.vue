@@ -5,11 +5,13 @@ const auth = useAuthStore()
 </script>
 
 <template>
-  <div>
-    <h1 class="text-2xl font-bold text-ink">Bienvenido</h1>
-    <p class="mt-1 text-sm text-ink-secondary">
-      Estás operando como <strong class="text-ink">{{ auth.currentRole?.name_role }}</strong>.
-      Usá el menú de la izquierda para navegar a los módulos disponibles para este rol.
+  <div class="rounded-xl border border-border bg-surface p-8">
+    <h1 class="text-2xl font-bold text-ink">¡Bienvenido, {{ auth.username }}!</h1>
+    <p class="mt-2 text-base text-ink-secondary">
+      Estás operando como <strong class="font-semibold text-ink">{{ auth.currentRole?.name_role }}</strong>.
+    </p>
+    <p class="mt-4 text-sm text-ink-muted">
+      Usá el menú de navegación para acceder a los módulos disponibles para este rol.
     </p>
   </div>
 </template>
