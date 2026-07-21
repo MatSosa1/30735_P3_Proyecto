@@ -3,7 +3,7 @@ from datetime import datetime, UTC
 from typing import List
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, event, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, event, func
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import String, Text
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -152,6 +152,20 @@ class RoleModule(Base):
 
   role: Mapped['Role'] = relationship(back_populates='role_modules')
   module: Mapped['Module'] = relationship(back_populates='module_roles')
+
+
+# Refresh tokens: sesiones (Stateless JWT + estado minimo del refresh en BD para poder revocar).
+# id_role fija el rol de la sesion (Least Privilege): refrescar nunca cambia el rol elegido al hacer login.
+class RefreshToken(Base):
+  __tablename__ = 'RefreshTokens'
+
+  id_refresh_token: Mapped[int] = mapped_column(primary_key=True)
+  id_user: Mapped[int] = mapped_column(ForeignKey('Users.id_user'))
+  id_role: Mapped[int] = mapped_column(ForeignKey('Roles.id_role'))
+  token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+  expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+  revoked: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false', nullable=False)
+  fecha_creacion: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 # Hook de auditoria: fecha_creacion/fecha_actualizacion son manejadas exclusivamente por el ORM,

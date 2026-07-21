@@ -62,6 +62,7 @@ class TestUserRoutes:
     user = response.json()
 
     assert user['id_user'] == 1
+    assert 'password_user' not in user
 
 
   # GET /{user_id} - NOT FOUND
@@ -86,7 +87,7 @@ class TestUserRoutes:
         'name': 'Test',
         'surname': 'User',
         'username': 'test_user_routes',
-        'password': '1234'
+        'password': 'Str0ngPass!'
       },
       headers=self.headers
     )
@@ -99,6 +100,23 @@ class TestUserRoutes:
     assert user['name_user'] == 'Test'
     assert user['surname_user'] == 'User'
     assert user['username_user'] == 'test_user_routes'
+    assert 'password_user' not in user
+
+
+  # POST / - WEAK PASSWORD
+  def test_post_user_weak_password(self):
+    response = self.client.post(
+      '/api/users/',
+      json={
+        'name': 'Test',
+        'surname': 'User',
+        'username': 'weak_password_user',
+        'password': '1234'
+      },
+      headers=self.headers
+    )
+
+    assert response.status_code == 422
 
 
   # PATCH /{user_id}
@@ -109,7 +127,7 @@ class TestUserRoutes:
         'name': 'User',
         'surname': 'Before Update',
         'username': 'user_before_update',
-        'password': '1234'
+        'password': 'Str0ngPass!'
       },
       headers=self.headers
     )
@@ -159,7 +177,7 @@ class TestUserRoutes:
         'name': 'User',
         'surname': 'To Delete',
         'username': 'user_to_delete',
-        'password': '1234'
+        'password': 'Str0ngPass!'
       },
       headers=self.headers
     )
