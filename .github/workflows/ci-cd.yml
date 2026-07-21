@@ -204,16 +204,28 @@ jobs:
                     exit 1
                   fi
 
-            - name: Deploy a Vercel (Frontend)
+            - name: Deploy a Vercel (Frontend, solo push a main, gateado por los checks previos)
+              id: deploy-vercel
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              continue-on-error: true
               env:
                   VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
               run: |
                   if [ -z "${VERCEL_DEPLOY_HOOK_URL:-}" ]; then
                     echo "::warning::Falta el secret VERCEL_DEPLOY_HOOK_URL; se omite el despliegue."
+                    echo "outcome=skipped" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
-                  curl -s -X POST "${VERCEL_DEPLOY_HOOK_URL}"
+                  status="$(curl -s -o /tmp/vercel_hook_resp.json -w '%{http_code}' -X POST "${VERCEL_DEPLOY_HOOK_URL}")"
+                  body="$(cat /tmp/vercel_hook_resp.json 2>/dev/null || true)"
+                  echo "Respuesta de Vercel (HTTP ${status}): ${body}"
+                  if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
+                    echo "outcome=success" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "::error::Vercel devolvió HTTP ${status} al disparar el deploy hook: ${body}"
+                    echo "outcome=failure" >> "$GITHUB_OUTPUT"
+                    exit 1
+                  fi
 
             - name: Notificar resultados a Telegram (obligatorio)
               if: always()
@@ -223,6 +235,7 @@ jobs:
                   SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
                   BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
                   DEPLOY_OUTCOME: ${{ steps.deploy.outputs.outcome || steps.deploy.conclusion }}
+                  VERCEL_DEPLOY_OUTCOME: ${{ steps.deploy-vercel.outputs.outcome || steps.deploy-vercel.conclusion }}
                   TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
                   TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
                   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
