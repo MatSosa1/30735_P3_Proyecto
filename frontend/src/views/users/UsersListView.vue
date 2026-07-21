@@ -108,7 +108,12 @@ onMounted(load)
 <template>
   <div>
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-ink">Usuarios</h1>
+      <div>
+        <h1 class="text-2xl font-bold text-ink">Usuarios</h1>
+        <p class="mt-1 text-sm text-ink-secondary">
+          Administrá las cuentas del sistema y sus credenciales de acceso.
+        </p>
+      </div>
       <button
         type="button"
         class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition active:scale-[0.98]"
