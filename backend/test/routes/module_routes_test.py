@@ -191,3 +191,28 @@ class TestModuleRoutes:
     assert response.json() == {
       'detail': 'Module not found'
     }
+
+
+  # PATCH /{module_id} - CYCLE
+  def test_patch_module_parent_id_cycle_is_rejected(self):
+    root_response = self.client.post(
+      '/api/modules/',
+      json={'name': 'Cycle Root', 'url': '', 'parent_id': None},
+      headers=self.headers
+    )
+    root_id = root_response.json()['id_module']
+
+    child_response = self.client.post(
+      '/api/modules/',
+      json={'name': 'Cycle Child', 'url': '', 'parent_id': root_id},
+      headers=self.headers
+    )
+    child_id = child_response.json()['id_module']
+
+    response = self.client.patch(
+      f'/api/modules/{root_id}',
+      json={'parent_id': child_id},
+      headers=self.headers
+    )
+
+    assert response.status_code == 400
