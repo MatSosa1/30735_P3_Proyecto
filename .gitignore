@@ -3,3 +3,12 @@ venv/
 
 __pycache__/
 .pytest_cache/
+
+docs/internal/
+
+.claude/
+.agents/
+.skills/
+skills/
+skills-lock.json
+CLAUDE.md
