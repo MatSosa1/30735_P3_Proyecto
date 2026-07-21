@@ -1,12 +1,32 @@
+import re
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from sqlalchemy.orm import Session
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from src.routes.dependencies.dependencies import require_module
 from src.controllers.user_controller import UserController
 from src.db.session import get_db
+from src.models.models import EstadoEnum
+
+
+def validate_password_strength(value: str) -> str:
+  if len(value) < 8:
+    raise ValueError('La contraseña debe tener al menos 8 caracteres')
+
+  if not re.search(r'[A-Z]', value):
+    raise ValueError('La contraseña debe incluir al menos una letra mayúscula')
+
+  if not re.search(r'[a-z]', value):
+    raise ValueError('La contraseña debe incluir al menos una letra minúscula')
+
+  if not re.search(r'\d', value):
+    raise ValueError('La contraseña debe incluir al menos un número')
+
+  return value
 
 
 # Auxiliary Classes
@@ -16,12 +36,38 @@ class UserPost(BaseModel):
   username: str
   password: str
 
+  @field_validator('password')
+  @classmethod
+  def _validate_password(cls, value: str) -> str:
+    return validate_password_strength(value)
+
 
 class UserPatch(BaseModel):
   name: str | None = None
   surname: str | None = None
   username: str | None = None
   password: str | None = None
+
+  @field_validator('password')
+  @classmethod
+  def _validate_password(cls, value: str | None) -> str | None:
+    if value is None:
+      return value
+
+    return validate_password_strength(value)
+
+
+# No incluye password_user: nunca se expone el hash de la contraseña en las respuestas
+class UserOut(BaseModel):
+  model_config = ConfigDict(from_attributes=True)
+
+  id_user: int
+  name_user: str
+  surname_user: str
+  username_user: str
+  estado: EstadoEnum
+  fecha_creacion: datetime
+  fecha_actualizacion: datetime
 
 
 router = APIRouter(
@@ -36,7 +82,8 @@ router = APIRouter(
 # GET
 @router.get(
   '/',
-  status_code=status.HTTP_200_OK
+  status_code=status.HTTP_200_OK,
+  response_model=list[UserOut]
 )
 def get_users(
   db: Session = Depends(get_db)
@@ -46,7 +93,8 @@ def get_users(
 
 @router.get(
   '/{user_id}',
-  status_code=status.HTTP_200_OK
+  status_code=status.HTTP_200_OK,
+  response_model=UserOut
 )
 def get_user_by_id(
   user_id: int,
@@ -69,7 +117,8 @@ def get_user_by_id(
 # POST
 @router.post(
   '/',
-  status_code=status.HTTP_201_CREATED
+  status_code=status.HTTP_201_CREATED,
+  response_model=UserOut
 )
 def post_user(
   user: UserPost,
@@ -87,7 +136,8 @@ def post_user(
 # UPDATE
 @router.patch(
   '/{user_id}',
-  status_code=status.HTTP_200_OK
+  status_code=status.HTTP_200_OK,
+  response_model=UserOut
 )
 def patch_user(
   user_id: int,
