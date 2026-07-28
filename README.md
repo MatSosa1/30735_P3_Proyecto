@@ -60,6 +60,18 @@ El backend necesita una instancia de PostgreSQL con el esquema y los datos semil
 - **PostgreSQL local propio**: crear la base de datos y ejecutar `db/init.sql` seguido de `db/data.sql`
   manualmente, y ajustar las variables `DB_*` del `.env` del backend para que coincidan.
 
+### Usuarios de prueba
+
+`db/data.sql` (los datos semilla) crea dos usuarios, ambos con contraseña `1234`:
+
+| Usuario | Contraseña | Roles disponibles                              |
+| ------- | ---------- | ----------------------------------------------- |
+| `admin` | `1234`     | Vendedor, Asistente, Visitante, **Administrador** |
+| `msosa` | `1234`     | Vendedor, Asistente                              |
+
+Solo el rol **Administrador** (elegido con `admin`) tiene acceso a los módulos de administración
+(`/users`, `/roles`, `/modules`) — con `msosa` no vas a ver esas pantallas.
+
 ## Frontend
 
 Requiere el backend corriendo en `http://localhost:8000` (con la base de datos ya seedeada).
