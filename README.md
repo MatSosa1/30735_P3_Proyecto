@@ -1,3 +1,93 @@
+# Cómo levantar el proyecto en local
+
+El repositorio contiene dos aplicaciones independientes (`backend/` y `frontend/`) más los scripts de
+base de datos en `db/`. Pueden levantarse manualmente paso a paso (backend → base de datos → frontend,
+como se detalla abajo) o todas juntas con Docker Compose.
+
+## Backend
+
+Requiere Python y una base de datos PostgreSQL accesible (ver sección de Base de Datos más abajo).
+
+### Variables de Entorno
+
+```sh
+cd backend
+cp example.env .env
+
+# De ser necesario, cambiar las variables de acuerdo a su entorno
+```
+
+### Dependencias Python
+
+Se recomienda realizar toda la instalación en un entorno virtual de Python (_venv_):
+
+```sh
+# Crear entorno
+python -m venv venv
+
+# Entrar al entorno
+source venv/bin/activate  # Dependerá de tu terminal
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Desactivar entorno (cuando termines)
+deactivate
+```
+
+### Ejecución
+
+```sh
+uvicorn main:app --reload
+```
+
+Esto abrirá el backend en `http://localhost:8000`.
+
+## Base de Datos
+
+El backend necesita una instancia de PostgreSQL con el esquema y los datos semilla cargados
+(`db/init.sql` y `db/data.sql`, en la raíz del repo). Dos formas de conseguirlo:
+
+- **Solo la base de datos vía Docker Compose** (recomendado si el backend se corre manualmente):
+
+    ```sh
+    docker-compose up db
+    ```
+
+    Esto levanta Postgres en `localhost:5432` con el esquema y los datos ya cargados, listo para que el
+    backend (`.env` con los valores por defecto) se conecte.
+
+- **PostgreSQL local propio**: crear la base de datos y ejecutar `db/init.sql` seguido de `db/data.sql`
+  manualmente, y ajustar las variables `DB_*` del `.env` del backend para que coincidan.
+
+## Frontend
+
+Requiere el backend corriendo en `http://localhost:8000` (con la base de datos ya seedeada).
+
+```sh
+cd frontend
+cp .env.example .env   # ajustar VITE_API_BASE_URL si el backend no corre en localhost:8000
+npm install
+npm run dev            # http://localhost:5173
+```
+
+```sh
+npm run build           # build de producción en dist/
+npm run preview         # sirve el build de producción localmente
+```
+
+## Todo junto con Docker Compose
+
+Para levantar base de datos, backend y frontend de una sola vez:
+
+```sh
+docker-compose up
+```
+
+Las variables de entorno (`DB_USERNAME`, `JWT_SECRET`, `INTERNAL_SERVICES_SECRET`, `CORS_ORIGINS`, etc.)
+tienen valores por defecto definidos en `docker-compose.yml` para uso local; pueden sobreescribirse con un
+`.env` en la raíz del repo o variables exportadas en el entorno.
+
 # Tema
 
 Sistema de Autenticación y Autorización Centralizado (Master Gateway)
@@ -61,11 +151,11 @@ completo; `dev`/`test` con un resumen liviano de solo lo que esa etapa efectivam
 Para que el pipeline funcione hace falta configurar estos secrets en
 **Settings → Secrets and variables → Actions**:
 
-| Secret | Para qué |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Token del bot de Telegram (BotFather). Notificaciones obligatorias — el job falla si no se puede notificar. |
-| `TELEGRAM_CHAT_ID` | ID del chat/grupo de Telegram donde se notifica. |
-| `RENDER_DEPLOY_HOOK_URL` | Deploy Hook del servicio en Render (Dashboard → el servicio → Settings → Deploy Hook). Si falta, el despliegue se omite (no rompe el pipeline) pero no despliega nada — hay que configurarlo antes de depender del deploy automático. |
+| Secret                    | Para qué                                                                                                                                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`      | Token del bot de Telegram (BotFather). Notificaciones obligatorias — el job falla si no se puede notificar.                                                                                                                                          |
+| `TELEGRAM_CHAT_ID`        | ID del chat/grupo de Telegram donde se notifica.                                                                                                                                                                                                     |
+| `RENDER_DEPLOY_HOOK_URL`  | Deploy Hook del servicio en Render (Dashboard → el servicio → Settings → Deploy Hook). Si falta, el despliegue se omite (no rompe el pipeline) pero no despliega nada — hay que configurarlo antes de depender del deploy automático.                |
 | `SONAR_CI_ADMIN_PASSWORD` | Opcional. Contraseña que el pipeline le pone al admin de SonarQube dentro del contenedor efímero (no es un secreto de un servicio externo, es autocontenido al propio pipeline). Si no se define, usa un valor por defecto documentado en el script. |
 
 **Importante:** en Render, deshabilitar el auto-deploy nativo de GitHub del servicio (el que dispara con
